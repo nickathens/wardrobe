@@ -12,6 +12,13 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+### Environment variables
+
+The application uses the `openai` package to generate suggestions and images.
+Set the following variable before running the server:
+
+- `OPENAI_API_KEY` - your OpenAI API key
+
 Run the development server. Set `FLASK_DEBUG=1` to enable debug mode:
 
 ```bash
