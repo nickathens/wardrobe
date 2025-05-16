@@ -1,8 +1,14 @@
 import os
-from flask import Flask, request, render_template, jsonify
+try:
+    from flask import Flask, request, render_template, jsonify
+except Exception:  # pragma: no cover - fallback when Flask isn't installed
+    from flask_stub import Flask, request, render_template, jsonify
 from clothseg import ClothSegmenter
 from werkzeug.utils import secure_filename
-import openai
+try:
+    import openai  # type: ignore
+except Exception:  # pragma: no cover - fallback when OpenAI package is missing
+    import openai_stub as openai
 import tempfile
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
