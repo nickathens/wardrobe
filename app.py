@@ -1,10 +1,12 @@
 import os
 from flask import Flask, request, render_template, jsonify
 from schp import SCHPParser
+from sam import SAMSegmenter
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 schp_parser = SCHPParser()
+sam_segmenter = SAMSegmenter()
 
 # Simple in-memory user store. In a real application this would be a database.
 users = {}
@@ -44,6 +46,21 @@ def suggest():
     description = request.form.get('description', '')
     suggestions = [f"Outfit suggestion for: {description}"]
     return jsonify({'suggestions': suggestions})
+
+
+@app.route('/segment', methods=['POST'])
+def segment_image():
+    file = request.files.get('image')
+    if file is None or file.filename == '':
+        return jsonify({'error': 'No file provided'}), 400
+
+    prompt = request.form.get('prompt')
+    filename = secure_filename(file.filename)
+    temp_path = os.path.join('/tmp', filename)
+    file.save(temp_path)
+    results = sam_segmenter.segment(temp_path, prompt=prompt)
+    os.remove(temp_path)
+    return jsonify(results)
 
 
 @app.route('/register/email', methods=['POST'])

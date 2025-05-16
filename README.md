@@ -4,6 +4,8 @@ This project provides a simple Flask application that allows users to upload an 
 
 The repository now includes a lightweight stub for the Self-Correction Human Parsing (SCHP) model. You can `POST` an image to the `/parse` endpoint to receive dummy segmentation data illustrating how SCHP could be integrated without shipping the full model.
 
+A similar stub is provided for the Segment Anything Model (SAM). `POST` an image to the `/segment` endpoint to obtain placeholder bounding boxes and masks demonstrating how SAM integration might work.
+
 ## Setup
 
 Install dependencies:
