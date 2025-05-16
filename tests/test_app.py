@@ -1,7 +1,7 @@
 import io
 import pytest
 
-from app import app
+from app import app, MAX_FILE_SIZE
 
 @pytest.fixture
 def client():
@@ -37,6 +37,34 @@ def test_upload_route_no_file(client):
     assert payload == {'error': 'No file provided'}
 
 
+def test_upload_route_invalid_type(client):
+    data = {
+        'image': (io.BytesIO(b'data'), 'malware.txt')
+    }
+    response = client.post(
+        '/upload',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'Invalid file type'}
+
+
+def test_upload_route_too_large(client):
+    data = {
+        'image': (io.BytesIO(b'a' * (MAX_FILE_SIZE + 1)), 'big.png')
+    }
+    response = client.post(
+        '/upload',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'File too large'}
+
+
 def test_parse_route(client):
     data = {
         'image': (io.BytesIO(b'mock image data'), 'test.png')
@@ -49,6 +77,34 @@ def test_parse_route(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert 'parts' in payload
+
+
+def test_parse_route_invalid_type(client):
+    data = {
+        'image': (io.BytesIO(b'data'), 'document.pdf')
+    }
+    response = client.post(
+        '/parse',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'Invalid file type'}
+
+
+def test_parse_route_too_large(client):
+    data = {
+        'image': (io.BytesIO(b'a' * (MAX_FILE_SIZE + 1)), 'huge.png')
+    }
+    response = client.post(
+        '/parse',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'File too large'}
 
 def test_suggest_route(client):
     data = {'description': 'casual outfit'}

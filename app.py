@@ -1,10 +1,14 @@
 import os
+import mimetypes
 from flask import Flask, request, render_template, jsonify
 from clothseg import ClothSegmenter
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 cloth_segmenter = ClothSegmenter()
+
+# Maximum allowed upload size in bytes (2 MB)
+MAX_FILE_SIZE = 2 * 1024 * 1024
 
 # Simple in-memory user store. In a real application this would be a database.
 users = {}
@@ -20,6 +24,16 @@ def upload():
     if file is None or file.filename == '':
         return jsonify({'error': 'No file provided'}), 400
 
+    mime = mimetypes.guess_type(file.filename)[0]
+    if not (mime and mime.startswith('image/')):
+        return jsonify({'error': 'Invalid file type'}), 400
+
+    file.stream.seek(0, os.SEEK_END)
+    size = file.stream.tell()
+    file.stream.seek(0)
+    if size > MAX_FILE_SIZE:
+        return jsonify({'error': 'File too large'}), 400
+
     filename = secure_filename(file.filename)
     suggestions = [f"Outfit suggestion based on {filename}"]
     return jsonify({'suggestions': suggestions})
@@ -30,6 +44,16 @@ def parse_image():
     file = request.files.get('image')
     if file is None or file.filename == '':
         return jsonify({'error': 'No file provided'}), 400
+
+    mime = mimetypes.guess_type(file.filename)[0]
+    if not (mime and mime.startswith('image/')):
+        return jsonify({'error': 'Invalid file type'}), 400
+
+    file.stream.seek(0, os.SEEK_END)
+    size = file.stream.tell()
+    file.stream.seek(0)
+    if size > MAX_FILE_SIZE:
+        return jsonify({'error': 'File too large'}), 400
 
     filename = secure_filename(file.filename)
     # Save the file temporarily to parse.
