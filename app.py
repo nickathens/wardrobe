@@ -4,7 +4,6 @@ try:
 except Exception:  # pragma: no cover - fallback when Flask isn't installed
     from flask_stub import Flask, request, render_template, jsonify
 from clothseg import ClothSegmenter
-from werkzeug.utils import secure_filename
 try:
     import openai  # type: ignore
 except Exception:  # pragma: no cover - fallback when OpenAI package is missing
@@ -62,12 +61,10 @@ def parse_image():
     if file is None or file.filename == '':
         return jsonify({'error': 'No file provided'}), 400
 
-    filename = secure_filename(file.filename)
     # Save the file temporarily to parse using a unique path.
     tmp = tempfile.NamedTemporaryFile(delete=False)
     temp_path = tmp.name
     tmp.close()
-    parts = None
     file.save(temp_path)
     try:
         parts = cloth_segmenter.parse(temp_path)
