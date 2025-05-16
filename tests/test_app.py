@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch
 
 from app import app
+import app as app_module
 
 @pytest.fixture
 def client():
@@ -141,16 +142,15 @@ def test_parse_cleanup_on_failure(client):
     def dummy_tmp(*args, **kwargs):
         return DummyTmp(temp_path)
 
-    with patch('app.tempfile.NamedTemporaryFile', side_effect=dummy_tmp), \
-         patch('app.cloth_segmenter.parse', side_effect=fail_parse):
-        try:
-            client.post(
-                '/parse',
-                data=data,
-                content_type='multipart/form-data'
-            )
-        except RuntimeError:
-            pass
+    with patch.object(app_module.tempfile, 'NamedTemporaryFile', side_effect=dummy_tmp), \
+         patch.object(app_module.cloth_segmenter, 'parse', side_effect=fail_parse):
+        response = client.post(
+            '/parse',
+            data=data,
+            content_type='multipart/form-data'
+        )
+    assert response.status_code == 500
+    assert response.get_json() == {'error': 'Segmentation failed'}
     assert not os.path.exists(temp_path)
 
 
