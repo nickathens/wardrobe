@@ -1,7 +1,6 @@
 # Wardrobe
 
-This project provides a simple Flask application that allows users to upload an
-image or provide a text description to receive outfit suggestions.
+This project provides a simple Flask application that allows users to upload an image or provide a text description to receive outfit suggestions.
 
 ## Setup
 
@@ -26,3 +25,7 @@ Execute the test suite using `pytest`:
 ```bash
 pytest
 ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
