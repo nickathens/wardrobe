@@ -56,9 +56,13 @@ def parse_image():
     temp_path = tmp.name
     tmp.close()
     parts = None
+    file.save(temp_path)
     try:
-        file.save(temp_path)
         parts = cloth_segmenter.parse(temp_path)
+    except Exception:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return jsonify({'error': 'Segmentation failed'}), 500
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
