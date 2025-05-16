@@ -2,7 +2,7 @@
 
 This project provides a simple Flask application that allows users to upload an image or provide a text description to receive outfit suggestions.
 
-The repository now includes a lightweight stub for the Self-Correction Human Parsing (SCHP) model. You can `POST` an image to the `/parse` endpoint to receive dummy segmentation data illustrating how SCHP could be integrated without shipping the full model.
+The repository now includes a lightweight stub for a U2Net-based cloth segmentation model. You can `POST` an image to the `/parse` endpoint to receive dummy segmentation data illustrating how cloth parsing could be integrated without shipping the full model or large weights.
 
 ## Setup
 
