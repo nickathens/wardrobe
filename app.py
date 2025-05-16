@@ -1,8 +1,10 @@
 import os
 from flask import Flask, request, render_template, jsonify
+from schp import SCHPParser
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+schp_parser = SCHPParser()
 
 # Simple in-memory user store. In a real application this would be a database.
 users = {}
@@ -21,6 +23,21 @@ def upload():
     filename = secure_filename(file.filename)
     suggestions = [f"Outfit suggestion based on {filename}"]
     return jsonify({'suggestions': suggestions})
+
+
+@app.route('/parse', methods=['POST'])
+def parse_image():
+    file = request.files.get('image')
+    if file is None or file.filename == '':
+        return jsonify({'error': 'No file provided'}), 400
+
+    filename = secure_filename(file.filename)
+    # Save the file temporarily to parse.
+    temp_path = os.path.join('/tmp', filename)
+    file.save(temp_path)
+    parts = schp_parser.parse(temp_path)
+    os.remove(temp_path)
+    return jsonify({'parts': parts})
 
 @app.route('/suggest', methods=['POST'])
 def suggest():
