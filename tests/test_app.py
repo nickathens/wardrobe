@@ -1,7 +1,9 @@
 import io
+import os
 import pytest
+from unittest.mock import patch
 
-from app import app
+from app import app, MAX_FILE_SIZE
 
 @pytest.fixture
 def client():
@@ -37,6 +39,34 @@ def test_upload_route_no_file(client):
     assert payload == {'error': 'No file provided'}
 
 
+def test_upload_route_invalid_type(client):
+    data = {
+        'image': (io.BytesIO(b'data'), 'malware.txt')
+    }
+    response = client.post(
+        '/upload',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'Invalid file type'}
+
+
+def test_upload_route_too_large(client):
+    data = {
+        'image': (io.BytesIO(b'a' * (MAX_FILE_SIZE + 1)), 'big.png')
+    }
+    response = client.post(
+        '/upload',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'File too large'}
+
+
 def test_parse_route(client):
     data = {
         'image': (io.BytesIO(b'mock image data'), 'test.png')
@@ -49,6 +79,34 @@ def test_parse_route(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert 'parts' in payload
+
+
+def test_parse_route_invalid_type(client):
+    data = {
+        'image': (io.BytesIO(b'data'), 'document.pdf')
+    }
+    response = client.post(
+        '/parse',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'Invalid file type'}
+
+
+def test_parse_route_too_large(client):
+    data = {
+        'image': (io.BytesIO(b'a' * (MAX_FILE_SIZE + 1)), 'huge.png')
+    }
+    response = client.post(
+        '/parse',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'File too large'}
 
 def test_suggest_route(client):
     data = {'description': 'casual outfit'}
@@ -71,3 +129,27 @@ def test_register_phone_missing_number(client):
     assert response.status_code == 400
     payload = response.get_json()
     assert payload == {'error': 'Phone number required'}
+
+
+def test_parse_cleanup_on_failure(client):
+    temp_path = os.path.join('/tmp', 'fail.png')
+
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+
+    def fail_parse(path):
+        raise RuntimeError('boom')
+
+    data = {
+        'image': (io.BytesIO(b'mock image data'), 'fail.png')
+    }
+    with patch('app.cloth_segmenter.parse', side_effect=fail_parse):
+        try:
+            client.post(
+                '/parse',
+                data=data,
+                content_type='multipart/form-data'
+            )
+        except RuntimeError:
+            pass
+    assert not os.path.exists(temp_path)
