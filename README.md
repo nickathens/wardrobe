@@ -10,11 +10,14 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Run the development server:
+Run the development server. Set `FLASK_DEBUG=1` to enable debug mode:
 
 ```bash
-python app.py
+FLASK_DEBUG=1 python app.py
 ```
+
+If `FLASK_DEBUG` is unset or evaluates to false, the server runs without debug
+enabled.
 
 Then visit `http://localhost:5000` in your browser.
 
