@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wardrobe</title>
+    <script src="{{ url_for('static', filename='main.js') }}" defer></script>
+</head>
+<body>
+    <h1>Wardrobe</h1>
+    <h2>Upload an image</h2>
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" name="image" accept="image/*">
+        <button type="submit">Upload</button>
+    </form>
+
+    <h2>Describe your outfit</h2>
+    <form id="suggest-form">
+        <input type="text" name="description" placeholder="Enter description">
+        <button type="submit">Suggest</button>
+    </form>
+
+    <div id="results"></div>
+</body>
+</html>
