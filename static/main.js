@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
       body: formData
     });
     const data = await response.json();
-    showSuggestions(data.suggestions);
+    showSuggestions(data.suggestions, data.image_url);
   });
 
   suggestForm.addEventListener('submit', async (e) => {
@@ -22,10 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
       body: formData
     });
     const data = await response.json();
-    showSuggestions(data.suggestions);
+    showSuggestions(data.suggestions, data.image_url);
   });
 
-  function showSuggestions(suggestions) {
+  function showSuggestions(suggestions, imageUrl) {
     results.textContent = '';
 
     const heading = document.createElement('h3');
@@ -40,5 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     results.appendChild(list);
+
+    if (imageUrl) {
+      const img = document.createElement('img');
+      img.src = imageUrl;
+      img.alt = 'Outfit suggestion';
+      results.appendChild(img);
+    }
   }
 });
