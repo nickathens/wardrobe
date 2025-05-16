@@ -32,3 +32,18 @@ def test_suggest_route(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert payload == {'suggestions': ['Outfit suggestion for: casual outfit']}
+
+
+def test_register_email(client):
+    data = {'email': 'user@example.com', 'password': 'secret'}
+    response = client.post('/register/email', data=data)
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload == {'message': 'Registered user@example.com via email'}
+
+
+def test_register_phone_missing_number(client):
+    response = client.post('/register/phone', data={})
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'Phone number required'}

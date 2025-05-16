@@ -18,6 +18,18 @@ python app.py
 
 Then visit `http://localhost:5000` in your browser.
 
+## Registration
+
+Users can register using one of several methods:
+
+- **Email**: `POST /register/email` with `email` and `password` form fields.
+- **Phone**: `POST /register/phone` with `phone` form field.
+- **Google**: `POST /register/google` with an OAuth `token`.
+- **Facebook**: `POST /register/facebook` with an OAuth `token`.
+
+The application stores registration data in memory for demonstration
+purposes only.
+
 ## Running Tests
 
 Execute the test suite using `pytest`:
