@@ -33,6 +33,17 @@ enabled.
 
 Then visit `http://localhost:5000` in your browser.
 
+### OpenAI API usage
+
+When the real `openai` package is installed, the application communicates
+directly with OpenAI's API to generate text and images. Any prompts or other
+data you send will therefore be transmitted to a third-party service
+(OpenAI) for processing.
+
+For local tests the repository bundles an `openai_stub` module that mimics the
+API without making network calls. Replace this stub with the genuine `openai`
+package in production so the application can contact OpenAI's servers.
+
 ## Cloth Segmentation Model
 
 Real cloth parsing relies on a pre-trained U^2-Net model. Download the weights
