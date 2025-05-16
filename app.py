@@ -12,6 +12,8 @@ except Exception:  # pragma: no cover - fallback when OpenAI package is missing
 import tempfile
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
+if openai.api_key is None and getattr(openai, "__name__", "") != "openai_stub":
+    raise RuntimeError("OPENAI_API_KEY not set")
 
 app = Flask(__name__)
 cloth_segmenter = ClothSegmenter()
