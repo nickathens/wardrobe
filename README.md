@@ -2,6 +2,8 @@
 
 This project provides a simple Flask application that allows users to upload an image or provide a text description to receive outfit suggestions.
 
+The `templates/index.html` page links to a small stylesheet under `static/styles.css` for basic layout and uses JavaScript to display the generated image returned by the API.
+
 The repository now integrates a U^2-Net based cloth segmentation model. When the
 pre-trained weights are available, real segmentation masks are produced for
 images sent to the `/parse` endpoint. If the weights are missing, the parser
