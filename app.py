@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, jsonify
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -10,7 +11,7 @@ def index():
 def upload():
     # In a real application you would process the uploaded file
     file = request.files.get('image')
-    filename = file.filename if file else 'no file'
+    filename = secure_filename(file.filename) if file else 'no file'
     suggestions = [f"Outfit suggestion based on {filename}"]
     return jsonify({'suggestions': suggestions})
 
