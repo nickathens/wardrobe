@@ -26,6 +26,16 @@ def test_upload_route(client):
     payload = response.get_json()
     assert payload == {'suggestions': ['Outfit suggestion based on test.png']}
 
+def test_upload_route_no_file(client):
+    response = client.post(
+        '/upload',
+        data={},
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'No file provided'}
+
 def test_suggest_route(client):
     data = {'description': 'casual outfit'}
     response = client.post('/suggest', data=data)
