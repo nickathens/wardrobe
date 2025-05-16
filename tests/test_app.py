@@ -1,5 +1,7 @@
 import io
+import os
 import pytest
+from unittest.mock import patch
 
 from app import app
 
@@ -71,3 +73,27 @@ def test_register_phone_missing_number(client):
     assert response.status_code == 400
     payload = response.get_json()
     assert payload == {'error': 'Phone number required'}
+
+
+def test_parse_cleanup_on_failure(client):
+    temp_path = os.path.join('/tmp', 'fail.png')
+
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+
+    def fail_parse(path):
+        raise RuntimeError('boom')
+
+    data = {
+        'image': (io.BytesIO(b'mock image data'), 'fail.png')
+    }
+    with patch('app.cloth_segmenter.parse', side_effect=fail_parse):
+        try:
+            client.post(
+                '/parse',
+                data=data,
+                content_type='multipart/form-data'
+            )
+        except RuntimeError:
+            pass
+    assert not os.path.exists(temp_path)
