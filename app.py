@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, jsonify
+import os
 
 app = Flask(__name__)
 
@@ -21,4 +22,6 @@ def suggest():
     return jsonify({'suggestions': suggestions})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug_env = os.getenv('FLASK_DEBUG', 'false')
+    debug = debug_env.lower() in ('1', 'true', 'yes')
+    app.run(debug=debug)
