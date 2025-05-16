@@ -18,3 +18,7 @@ python app.py
 ```
 
 Then visit `http://localhost:5000` in your browser.
+
+## License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
