@@ -1,5 +1,6 @@
-"""Stub for cloth segmentation using a U2Net-based model."""
+"""U\u00b2-Net-based cloth segmentation utilities."""
 
+import os
 from typing import Dict, List
 
 try:
@@ -11,7 +12,41 @@ except ImportError:  # pragma: no cover - optional dependencies
 
 
 class ClothSegmenter:
-    """Placeholder for a U2Net-based cloth segmentation model."""
+    """U\u00b2-Net cloth segmentation model loader and parser."""
+
+    #: URL for the official pre-trained weights
+    MODEL_URL = (
+        "https://github.com/xuebinqin/U-2-Net/releases/download/v1.0/u2net.pth"
+    )
+
+    #: Default location for the downloaded weights
+    DEFAULT_MODEL_PATH = os.path.join(
+        os.path.expanduser("~"), "\.u2net", "u2net.pth"
+    )
+
+    @classmethod
+    def download_model(cls, dest_path: str | None = None) -> str:
+        """Download the pre-trained weights.
+
+        Parameters
+        ----------
+        dest_path : str | None, optional
+            Location where the model should be stored. When ``None`` the
+            :data:`DEFAULT_MODEL_PATH` is used.
+
+        Returns
+        -------
+        str
+            The path to the downloaded weights.
+        """
+
+        if torch is None:
+            raise RuntimeError("PyTorch is required to download the model")
+
+        dest = dest_path or cls.DEFAULT_MODEL_PATH
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        torch.hub.download_url_to_file(cls.MODEL_URL, dest, progress=True)
+        return dest
 
     def __init__(self, model_path: str | None = None):
         """Initialise the segmenter.
@@ -21,11 +56,15 @@ class ClothSegmenter:
         model_path : str | None
             Optional path to a pre-trained U2Net cloth segmentation model.
         """
+        if model_path is None:
+            model_path = (
+                self.DEFAULT_MODEL_PATH if os.path.exists(self.DEFAULT_MODEL_PATH) else None
+            )
         self.model_path = model_path
         self.model = None
-        if torch is not None and model_path is not None:
+        if torch is not None and self.model_path is not None:
             try:  # pragma: no cover - external file loading
-                self.model = torch.jit.load(model_path)
+                self.model = torch.jit.load(self.model_path)
                 self.model.eval()
             except Exception:
                 self.model = None
@@ -55,3 +94,22 @@ class ClothSegmenter:
             masks = output > 0.5
             parts = ["upper_body", "lower_body", "full_body"]
             return {p: m.squeeze().cpu().numpy().tolist() for p, m in zip(parts, masks)}
+
+
+if __name__ == "__main__":  # pragma: no cover - manual invocation
+    import argparse
+
+    parser = argparse.ArgumentParser(description="U\u00b2-Net cloth segmentation utilities")
+    parser.add_argument(
+        "--download-model",
+        action="store_true",
+        help="Download the pre-trained U\u00b2-Net weights",
+    )
+    parser.add_argument(
+        "--dest", type=str, default=None, help="Custom path for downloaded weights"
+    )
+    args = parser.parse_args()
+
+    if args.download_model:
+        path = ClothSegmenter.download_model(args.dest)
+        print(f"Model downloaded to {path}")
