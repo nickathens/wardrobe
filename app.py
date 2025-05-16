@@ -32,7 +32,10 @@ def upload():
 
     filename = secure_filename(file.filename)
     prompt = f"Suggest an outfit based on the clothing item {filename}"
-    chat = openai.ChatCompletion.create(messages=[{"role": "user", "content": prompt}])
+    chat = openai.ChatCompletion.create(
+        messages=[{"role": "user", "content": prompt}],
+        model="gpt-3.5-turbo",
+    )
     suggestion_text = chat["choices"][0]["message"]["content"]
     image = openai.Image.create(prompt=prompt)
     image_url = image["data"][0]["url"]
@@ -63,7 +66,10 @@ def parse_image():
 def suggest():
     description = request.form.get('description', '')
     prompt = f"Suggest an outfit for: {description}"
-    chat = openai.ChatCompletion.create(messages=[{"role": "user", "content": prompt}])
+    chat = openai.ChatCompletion.create(
+        messages=[{"role": "user", "content": prompt}],
+        model="gpt-3.5-turbo",
+    )
     suggestion_text = chat["choices"][0]["message"]["content"]
     image = openai.Image.create(prompt=prompt)
     image_url = image["data"][0]["url"]
