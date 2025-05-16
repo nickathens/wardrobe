@@ -187,3 +187,36 @@ def test_register_facebook_missing_token(client):
     assert response.status_code == 400
     payload = response.get_json()
     assert payload == {'error': 'Facebook token required'}
+
+
+def test_no_api_key_with_stub():
+    import importlib, os, sys
+    os.environ.pop('OPENAI_API_KEY', None)
+    sys.modules.pop('app', None)
+    sys.modules.pop('openai', None)
+    module = importlib.import_module('app')
+    assert module.openai.__name__ == 'openai_stub'
+
+
+def test_missing_api_key_real_openai():
+    import importlib, os, sys, types
+    os.environ.pop('OPENAI_API_KEY', None)
+    dummy = types.SimpleNamespace(
+        __name__='openai',
+        ChatCompletion=types.SimpleNamespace(create=lambda *a, **k: None),
+        Image=types.SimpleNamespace(create=lambda *a, **k: None),
+        api_key=None,
+    )
+    sys.modules['openai'] = dummy
+    sys.modules.pop('app', None)
+    try:
+        raised = False
+        try:
+            importlib.import_module('app')
+        except RuntimeError:
+            raised = True
+        assert raised
+    finally:
+        sys.modules.pop('openai', None)
+        sys.modules.pop('app', None)
+        importlib.import_module('app')
