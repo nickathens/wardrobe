@@ -119,7 +119,22 @@ def test_parse_cleanup_on_failure(client):
     data = {
         'image': (io.BytesIO(b'mock image data'), 'fail.png')
     }
-    with patch('app.cloth_segmenter.parse', side_effect=fail_parse):
+
+    class DummyTmp:
+        def __init__(self, name):
+            self.name = name
+        def close(self):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc, tb):
+            pass
+
+    def dummy_tmp(*args, **kwargs):
+        return DummyTmp(temp_path)
+
+    with patch('app.tempfile.NamedTemporaryFile', side_effect=dummy_tmp), \
+         patch('app.cloth_segmenter.parse', side_effect=fail_parse):
         try:
             client.post(
                 '/parse',

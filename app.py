@@ -3,6 +3,7 @@ from flask import Flask, request, render_template, jsonify
 from clothseg import ClothSegmenter
 from werkzeug.utils import secure_filename
 import openai
+import tempfile
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -39,8 +40,10 @@ def parse_image():
         return jsonify({'error': 'No file provided'}), 400
 
     filename = secure_filename(file.filename)
-    # Save the file temporarily to parse.
-    temp_path = os.path.join('/tmp', filename)
+    # Save the file temporarily to parse using a unique path.
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    temp_path = tmp.name
+    tmp.close()
     parts = None
     try:
         file.save(temp_path)
