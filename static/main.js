@@ -26,7 +26,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function showSuggestions(suggestions) {
-    results.innerHTML = '<h3>Suggestions:</h3>' +
-      '<ul>' + suggestions.map(s => `<li>${s}</li>`).join('') + '</ul>';
+    results.textContent = '';
+
+    const heading = document.createElement('h3');
+    heading.textContent = 'Suggestions:';
+    results.appendChild(heading);
+
+    const list = document.createElement('ul');
+    suggestions.forEach(s => {
+      const item = document.createElement('li');
+      item.textContent = s;
+      list.appendChild(item);
+    });
+
+    results.appendChild(list);
   }
 });
