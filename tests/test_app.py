@@ -32,6 +32,10 @@ def test_upload_route(client):
             data=data,
             content_type='multipart/form-data'
         )
+        chat_create.assert_called_once_with(
+            messages=[{"role": "user", "content": "Suggest an outfit based on the clothing item test.png"}],
+            model="gpt-3.5-turbo",
+        )
     assert response.status_code == 200
     payload = response.get_json()
     assert payload == {
@@ -84,6 +88,10 @@ def test_suggest_route(client):
             'data': [{'url': 'http://example.com/desc.png'}]
         }
         response = client.post('/suggest', data=data)
+        chat_create.assert_called_once_with(
+            messages=[{"role": "user", "content": "Suggest an outfit for: casual outfit"}],
+            model="gpt-3.5-turbo",
+        )
     assert response.status_code == 200
     payload = response.get_json()
     assert payload == {
