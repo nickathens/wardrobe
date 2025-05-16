@@ -15,6 +15,15 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+### Stub modules
+
+The repository bundles lightweight replacements for `flask`, `werkzeug`,
+`openai`, and `pytest` under the names `flask_stub`, `werkzeug_stub`,
+`openai_stub`, and a minimal `pytest` package. These allow the code to run in
+environments where the real dependencies are missing. Installing the genuine
+packages with `pip install -r requirements.txt` will override the stubs and is
+required for production use.
+
 ### Environment variables
 
 The application uses the `openai` package to generate suggestions and images.
