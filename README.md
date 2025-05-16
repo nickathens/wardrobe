@@ -68,8 +68,10 @@ Users can register using one of several methods:
 - **Google**: `POST /register/google` with an OAuth `token`.
 - **Facebook**: `POST /register/facebook` with an OAuth `token`.
 
-The application stores registration data in memory for demonstration
-purposes only.
+The application stores registration data solely in memory for
+demonstration purposes. This data is neither secure nor persistent, so
+it disappears when the server restarts and should not be used for any
+real authentication needs.
 
 ## Running Tests
 
