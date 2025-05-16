@@ -34,9 +34,13 @@ def parse_image():
     filename = secure_filename(file.filename)
     # Save the file temporarily to parse.
     temp_path = os.path.join('/tmp', filename)
-    file.save(temp_path)
-    parts = cloth_segmenter.parse(temp_path)
-    os.remove(temp_path)
+    parts = None
+    try:
+        file.save(temp_path)
+        parts = cloth_segmenter.parse(temp_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
     return jsonify({'parts': parts})
 
 @app.route('/suggest', methods=['POST'])
