@@ -2,6 +2,9 @@ import os
 from flask import Flask, request, render_template, jsonify
 from clothseg import ClothSegmenter
 from werkzeug.utils import secure_filename
+import openai
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 cloth_segmenter = ClothSegmenter()
@@ -21,8 +24,12 @@ def upload():
         return jsonify({'error': 'No file provided'}), 400
 
     filename = secure_filename(file.filename)
-    suggestions = [f"Outfit suggestion based on {filename}"]
-    return jsonify({'suggestions': suggestions})
+    prompt = f"Suggest an outfit based on the clothing item {filename}"
+    chat = openai.ChatCompletion.create(messages=[{"role": "user", "content": prompt}])
+    suggestion_text = chat["choices"][0]["message"]["content"]
+    image = openai.Image.create(prompt=prompt)
+    image_url = image["data"][0]["url"]
+    return jsonify({'suggestions': [suggestion_text], 'image_url': image_url})
 
 
 @app.route('/parse', methods=['POST'])
@@ -46,8 +53,12 @@ def parse_image():
 @app.route('/suggest', methods=['POST'])
 def suggest():
     description = request.form.get('description', '')
-    suggestions = [f"Outfit suggestion for: {description}"]
-    return jsonify({'suggestions': suggestions})
+    prompt = f"Suggest an outfit for: {description}"
+    chat = openai.ChatCompletion.create(messages=[{"role": "user", "content": prompt}])
+    suggestion_text = chat["choices"][0]["message"]["content"]
+    image = openai.Image.create(prompt=prompt)
+    image_url = image["data"][0]["url"]
+    return jsonify({'suggestions': [suggestion_text], 'image_url': image_url})
 
 
 @app.route('/register/email', methods=['POST'])

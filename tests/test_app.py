@@ -19,14 +19,25 @@ def test_upload_route(client):
     data = {
         'image': (io.BytesIO(b'mock image data'), 'test.png')
     }
-    response = client.post(
-        '/upload',
-        data=data,
-        content_type='multipart/form-data'
-    )
+    with patch('app.openai.ChatCompletion.create') as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        chat_create.return_value = {
+            'choices': [{'message': {'content': 'Stub suggestion'}}]
+        }
+        img_create.return_value = {
+            'data': [{'url': 'http://example.com/outfit.png'}]
+        }
+        response = client.post(
+            '/upload',
+            data=data,
+            content_type='multipart/form-data'
+        )
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload == {'suggestions': ['Outfit suggestion based on test.png']}
+    assert payload == {
+        'suggestions': ['Stub suggestion'],
+        'image_url': 'http://example.com/outfit.png'
+    }
 
 def test_upload_route_no_file(client):
     response = client.post(
@@ -64,10 +75,21 @@ def test_parse_route_no_file(client):
 
 def test_suggest_route(client):
     data = {'description': 'casual outfit'}
-    response = client.post('/suggest', data=data)
+    with patch('app.openai.ChatCompletion.create') as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        chat_create.return_value = {
+            'choices': [{'message': {'content': 'Stub suggest desc'}}]
+        }
+        img_create.return_value = {
+            'data': [{'url': 'http://example.com/desc.png'}]
+        }
+        response = client.post('/suggest', data=data)
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload == {'suggestions': ['Outfit suggestion for: casual outfit']}
+    assert payload == {
+        'suggestions': ['Stub suggest desc'],
+        'image_url': 'http://example.com/desc.png'
+    }
 
 
 def test_register_email(client):
