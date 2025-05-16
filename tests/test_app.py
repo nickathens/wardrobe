@@ -20,8 +20,14 @@ def test_upload_route(client):
     data = {
         'image': (io.BytesIO(b'mock image data'), 'test.png')
     }
-    with patch('app.openai.ChatCompletion.create') as chat_create, \
+    with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
+         patch('app.openai.ChatCompletion.create') as chat_create, \
          patch('app.openai.Image.create') as img_create:
+        parse.return_value = {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        }
         chat_create.return_value = {
             'choices': [{'message': {'content': 'Stub suggestion'}}]
         }
@@ -33,8 +39,9 @@ def test_upload_route(client):
             data=data,
             content_type='multipart/form-data'
         )
+        parse.assert_called_once()
         chat_create.assert_called_once_with(
-            messages=[{"role": "user", "content": "Suggest an outfit based on the clothing item test.png"}],
+            messages=[{"role": "user", "content": "Suggest an outfit based on the clothing parts: upper_body, lower_body, full_body"}],
             model="gpt-3.5-turbo",
         )
     assert response.status_code == 200

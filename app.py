@@ -32,8 +32,20 @@ def upload():
     if file is None or file.filename == '':
         return jsonify({'error': 'No file provided'}), 400
 
-    filename = secure_filename(file.filename)
-    prompt = f"Suggest an outfit based on the clothing item {filename}"
+    # Save the uploaded file temporarily so it can be parsed.
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    temp_path = tmp.name
+    tmp.close()
+    file.save(temp_path)
+
+    try:
+        parts = cloth_segmenter.parse(temp_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+    part_names = ", ".join(parts.keys()) if parts else "unknown parts"
+    prompt = f"Suggest an outfit based on the clothing parts: {part_names}"
     chat = openai.ChatCompletion.create(
         messages=[{"role": "user", "content": prompt}],
         model="gpt-3.5-turbo",
