@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
 
@@ -65,4 +66,6 @@ def register_facebook():
     return jsonify({'message': 'Registered via Facebook'})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    flag = os.getenv('FLASK_DEBUG')
+    debug_mode = flag.lower() in {'1', 'true', 'yes'} if flag is not None else False
+    app.run(debug=debug_mode)
