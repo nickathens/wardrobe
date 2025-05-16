@@ -5,3 +5,5 @@ pytest-flask
 torch
 numpy
 Pillow
+openai
+requests

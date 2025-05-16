@@ -1,10 +1,13 @@
 import os
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template, jsonify, Response
+import openai
+import requests
 from clothseg import ClothSegmenter
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 cloth_segmenter = ClothSegmenter()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Simple in-memory user store. In a real application this would be a database.
 users = {}
@@ -41,9 +44,45 @@ def parse_image():
 
 @app.route('/suggest', methods=['POST'])
 def suggest():
-    description = request.form.get('description', '')
-    suggestions = [f"Outfit suggestion for: {description}"]
+    description = request.form.get('description', '').strip()
+    if not description:
+        return jsonify({'error': 'Description required'}), 400
+
+    if not openai.api_key:
+        return jsonify({'error': 'OpenAI API key not configured'}), 500
+
+    prompt = f"Provide outfit suggestions for: {description}"
+    try:
+        resp = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = resp.choices[0].message.content.strip()
+    except Exception:
+        return jsonify({'error': 'Failed to generate suggestion'}), 500
+
+    suggestions = [line.strip('- ') for line in text.split('\n') if line.strip()]
     return jsonify({'suggestions': suggestions})
+
+
+@app.route('/generate', methods=['POST'])
+def generate():
+    parts = request.form.get('parts')
+    photo = request.files.get('photo')
+    if parts is None or photo is None or photo.filename == '':
+        return jsonify({'error': 'Photo and parts required'}), 400
+
+    files = {'photo': (secure_filename(photo.filename), photo.stream)}
+    data = {'parts': parts}
+    url = os.getenv('IMAGE_API_URL', 'https://example.com/generate')
+
+    try:
+        resp = requests.post(url, files=files, data=data)
+        resp.raise_for_status()
+    except Exception:
+        return jsonify({'error': 'Generation failed'}), 500
+
+    return Response(resp.content, status=resp.status_code)
 
 
 @app.route('/register/email', methods=['POST'])
