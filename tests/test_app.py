@@ -144,3 +144,38 @@ def test_parse_cleanup_on_failure(client):
         except RuntimeError:
             pass
     assert not os.path.exists(temp_path)
+
+
+def test_parse_route_mask_keys(client):
+    data = {
+        'image': (io.BytesIO(b'mock image data'), 'mask.png')
+    }
+    response = client.post(
+        '/parse',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert set(payload.get('parts', {}).keys()) == {'upper_body', 'lower_body', 'full_body'}
+
+
+def test_register_email_missing_fields(client):
+    response = client.post('/register/email', data={})
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'Email and password required'}
+
+
+def test_register_google_missing_token(client):
+    response = client.post('/register/google', data={})
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'Google token required'}
+
+
+def test_register_facebook_missing_token(client):
+    response = client.post('/register/facebook', data={})
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload == {'error': 'Facebook token required'}
