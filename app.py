@@ -14,7 +14,10 @@ def index():
 def upload():
     # In a real application you would process the uploaded file
     file = request.files.get('image')
-    filename = secure_filename(file.filename) if file else 'no file'
+    if file is None or file.filename == '':
+        return jsonify({'error': 'No file provided'}), 400
+
+    filename = secure_filename(file.filename)
     suggestions = [f"Outfit suggestion based on {filename}"]
     return jsonify({'suggestions': suggestions})
 
