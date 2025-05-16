@@ -1,10 +1,10 @@
 import os
 from flask import Flask, request, render_template, jsonify
-from schp import SCHPParser
+from clothseg import ClothSegmenter
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-schp_parser = SCHPParser()
+cloth_segmenter = ClothSegmenter()
 
 # Simple in-memory user store. In a real application this would be a database.
 users = {}
@@ -35,7 +35,7 @@ def parse_image():
     # Save the file temporarily to parse.
     temp_path = os.path.join('/tmp', filename)
     file.save(temp_path)
-    parts = schp_parser.parse(temp_path)
+    parts = cloth_segmenter.parse(temp_path)
     os.remove(temp_path)
     return jsonify({'parts': parts})
 
