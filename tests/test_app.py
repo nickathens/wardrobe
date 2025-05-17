@@ -302,6 +302,38 @@ def test_register_phone_persists(client):
     }
 
 
+def test_register_email_duplicate(client):
+    data = {'email': 'dup@example.com', 'password': 'pw'}
+    first = client.post('/register/email', data=data)
+    assert first.status_code == 200
+    second = client.post('/register/email', data=data)
+    assert second.status_code == 409
+
+
+def test_register_phone_duplicate(client):
+    data = {'phone': '5552223333'}
+    first = client.post('/register/phone', data=data)
+    assert first.status_code == 200
+    second = client.post('/register/phone', data=data)
+    assert second.status_code == 409
+
+
+def test_register_google_duplicate(client):
+    data = {'token': 'tok123'}
+    first = client.post('/register/google', data=data)
+    assert first.status_code == 200
+    second = client.post('/register/google', data=data)
+    assert second.status_code == 409
+
+
+def test_register_facebook_duplicate(client):
+    data = {'token': 'fb123'}
+    first = client.post('/register/facebook', data=data)
+    assert first.status_code == 200
+    second = client.post('/register/facebook', data=data)
+    assert second.status_code == 409
+
+
 def test_parse_cleanup_on_failure(client):
     temp_path = os.path.join('/tmp', 'fail.png')
 
