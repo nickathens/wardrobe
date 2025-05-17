@@ -117,6 +117,17 @@ class ClothSegmenter:
         """
         parts = ["upper_body", "lower_body", "full_body"]
 
+        if self.model is None and torch is not None:  # pragma: no cover - load lazily
+            path = self.model_path
+            if path is None and os.path.exists(self.DEFAULT_MODEL_PATH):
+                path = self.DEFAULT_MODEL_PATH
+            if path and os.path.exists(path):
+                try:
+                    self.model = torch.jit.load(path)
+                    self.model.eval()
+                except Exception:
+                    self.model = None
+
         if self.model is None:  # pragma: no cover - dummy path
             width, height = self._get_image_size(image_path)
             if width == 0 or height == 0:
