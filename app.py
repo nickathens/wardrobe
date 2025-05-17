@@ -5,6 +5,7 @@ try:
 except Exception:  # pragma: no cover - fallback when Flask isn't installed
     from flask_stub import Flask, request, render_template, jsonify
 from clothseg import ClothSegmenter
+from werkzeug.security import generate_password_hash, check_password_hash
 try:
     from sqlalchemy import Column, Integer, String, create_engine
     from sqlalchemy.orm import declarative_base, sessionmaker
@@ -201,8 +202,9 @@ def register_email():
     password = request.form.get('password')
     if not email or not password:
         return jsonify({'error': 'Email and password required'}), 400
+    hashed = generate_password_hash(password)
     with SessionLocal() as session:
-        session.add(User(identifier=email, method='email', password=password))
+        session.add(User(identifier=email, method='email', password=hashed))
         session.commit()
     return jsonify({'message': f'Registered {email} via email'})
 
