@@ -17,6 +17,21 @@ if openai.api_key is None and getattr(openai, "__name__", "") != "openai_stub":
 app = Flask(__name__)
 cloth_segmenter = ClothSegmenter()
 
+# Allowed upload types
+ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}
+ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg'}
+
+
+def _is_allowed_image(file) -> bool:
+    """Return True if ``file`` appears to be an allowed image."""
+    ext = os.path.splitext(getattr(file, 'filename', ''))[1].lower()
+    if ext in ALLOWED_EXTENSIONS:
+        return True
+    mime = getattr(file, 'mimetype', None)
+    if mime in ALLOWED_MIME_TYPES:
+        return True
+    return False
+
 # Simple in-memory user store. In a real application this would be a database.
 users = {}
 
@@ -30,6 +45,8 @@ def upload():
     file = request.files.get('image')
     if file is None or file.filename == '':
         return jsonify({'error': 'No file provided'}), 400
+    if not _is_allowed_image(file):
+        return jsonify({'error': 'Invalid file type'}), 400
 
     # Save the uploaded file temporarily so it can be parsed.
     tmp = tempfile.NamedTemporaryFile(delete=False)
@@ -60,6 +77,8 @@ def parse_image():
     file = request.files.get('image')
     if file is None or file.filename == '':
         return jsonify({'error': 'No file provided'}), 400
+    if not _is_allowed_image(file):
+        return jsonify({'error': 'Invalid file type'}), 400
 
     # Save the file temporarily to parse using a unique path.
     tmp = tempfile.NamedTemporaryFile(delete=False)

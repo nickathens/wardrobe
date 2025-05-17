@@ -62,6 +62,19 @@ def test_upload_route_no_file(client):
     assert payload == {'error': 'No file provided'}
 
 
+def test_upload_route_invalid_file_type(client):
+    data = {
+        'image': (io.BytesIO(b'not an image'), 'test.txt')
+    }
+    response = client.post(
+        '/upload',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'Invalid file type'}
+
+
 def test_parse_route(client):
     data = {
         'image': (io.BytesIO(b'mock image data'), 'test.png')
@@ -84,6 +97,19 @@ def test_parse_route_no_file(client):
     assert response.status_code == 400
     payload = response.get_json()
     assert payload == {'error': 'No file provided'}
+
+
+def test_parse_route_invalid_file_type(client):
+    data = {
+        'image': (io.BytesIO(b'not an image'), 'test.txt')
+    }
+    response = client.post(
+        '/parse',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'Invalid file type'}
 
 def test_suggest_route(client):
     data = {'description': 'casual outfit'}
