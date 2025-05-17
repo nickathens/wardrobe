@@ -79,10 +79,9 @@ Users can register using one of several methods:
 - **Google**: `POST /register/google` with an OAuth `token`.
 - **Facebook**: `POST /register/facebook` with an OAuth `token`.
 
-The application stores registration data solely in memory for
-demonstration purposes. This data is neither secure nor persistent, so
-it disappears when the server restarts and should not be used for any
-real authentication needs.
+Registration information is now persisted using a small SQLite database
+through SQLAlchemy. While convenient for local testing, this setup is
+still simplified and not intended for production authentication needs.
 
 ## Running Tests
 
