@@ -12,8 +12,19 @@ document.addEventListener('DOMContentLoaded', () => {
       method: 'POST',
       body: formData
     });
-    const data = await response.json();
-    showSuggestions(data.suggestions, data.image_url);
+    if (response.ok) {
+      const data = await response.json();
+      showSuggestions(data.suggestions, data.image_url);
+    } else {
+      let message = 'Request failed';
+      try {
+        const err = await response.json();
+        if (err.error) message = err.error;
+      } catch (e) {
+        // ignore
+      }
+      showError(results, message);
+    }
   });
 
   suggestForm.addEventListener('submit', async (e) => {
@@ -23,8 +34,19 @@ document.addEventListener('DOMContentLoaded', () => {
       method: 'POST',
       body: formData
     });
-    const data = await response.json();
-    showSuggestions(data.suggestions, data.image_url);
+    if (response.ok) {
+      const data = await response.json();
+      showSuggestions(data.suggestions, data.image_url);
+    } else {
+      let message = 'Request failed';
+      try {
+        const err = await response.json();
+        if (err.error) message = err.error;
+      } catch (e) {
+        // ignore
+      }
+      showError(results, message);
+    }
   });
 
   composeForm.addEventListener('submit', async (e) => {
@@ -34,8 +56,19 @@ document.addEventListener('DOMContentLoaded', () => {
       method: 'POST',
       body: formData
     });
-    const data = await response.json();
-    showComposite(data.suggestions, data.composite_url);
+    if (response.ok) {
+      const data = await response.json();
+      showComposite(data.suggestions, data.composite_url);
+    } else {
+      let message = 'Request failed';
+      try {
+        const err = await response.json();
+        if (err.error) message = err.error;
+      } catch (e) {
+        // ignore
+      }
+      showError(compositeResult, message);
+    }
   });
 
   function showSuggestions(suggestions, imageUrl) {
@@ -85,5 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       compositeResult.appendChild(list);
     }
+  }
+
+  function showError(container, message) {
+    container.textContent = `Error: ${message}`;
   }
 });
