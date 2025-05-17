@@ -35,6 +35,9 @@ Set the following variable before running the server:
 
 - `OPENAI_API_KEY` - your OpenAI API key
 
+If the real `openai` package is installed and this variable is not set, the
+server will exit on startup.
+
 Run the development server. Set `FLASK_DEBUG=1` to enable debug mode:
 
 ```bash
