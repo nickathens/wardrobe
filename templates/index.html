@@ -21,6 +21,17 @@
         <button type="submit">Suggest</button>
     </form>
 
+    <h2>Compose with clothing items</h2>
+    <form id="compose-form" enctype="multipart/form-data">
+        <label>Full body photo
+            <input type="file" name="body" accept="image/*">
+        </label>
+        <label>Select clothes
+            <input type="file" name="clothes" accept="image/*" multiple>
+        </label>
+        <button type="submit">Compose</button>
+    </form>
+
     <div id="results"></div>
 </body>
 </html>

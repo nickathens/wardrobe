@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const uploadForm = document.getElementById('upload-form');
   const suggestForm = document.getElementById('suggest-form');
+  const composeForm = document.getElementById('compose-form');
   const results = document.getElementById('results');
 
   uploadForm.addEventListener('submit', async (e) => {
@@ -18,6 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const formData = new FormData(suggestForm);
     const response = await fetch('/suggest', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await response.json();
+    showSuggestions(data.suggestions, data.image_url);
+  });
+
+  composeForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(composeForm);
+    const response = await fetch('/compose', {
       method: 'POST',
       body: formData
     });

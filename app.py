@@ -110,6 +110,55 @@ def suggest():
     return jsonify({'suggestions': [suggestion_text], 'image_url': image_url})
 
 
+@app.route('/compose', methods=['POST'])
+def compose():
+    """Combine a user photo with selected clothing images."""
+    body = request.files.get('body')
+    clothes = []
+    if hasattr(request.files, 'getlist'):
+        clothes = request.files.getlist('clothes')
+    else:
+        for key, value in request.files.items():
+            if key.startswith('clothes'):
+                clothes.append(value)
+
+    if body is None or body.filename == '':
+        return jsonify({'error': 'No body provided'}), 400
+    if not clothes:
+        return jsonify({'error': 'No clothes provided'}), 400
+
+    if not _is_allowed_image(body):
+        return jsonify({'error': 'Invalid file type'}), 400
+    for c in clothes:
+        if not _is_allowed_image(c):
+            return jsonify({'error': 'Invalid file type'}), 400
+
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    temp_path = tmp.name
+    tmp.close()
+    body.save(temp_path)
+
+    try:
+        parts = cloth_segmenter.parse(temp_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+    part_names = ", ".join(parts.keys()) if parts else "unknown parts"
+    clothing_names = ", ".join(os.path.splitext(c.filename)[0] for c in clothes)
+    prompt = (
+        f"Combine body parts {part_names} with clothing items: {clothing_names}"
+    )
+    chat = openai.ChatCompletion.create(
+        messages=[{"role": "user", "content": prompt}],
+        model="gpt-3.5-turbo",
+    )
+    suggestion_text = chat["choices"][0]["message"]["content"]
+    image = openai.Image.create(prompt=prompt)
+    image_url = image["data"][0]["url"]
+    return jsonify({'suggestions': [suggestion_text], 'image_url': image_url})
+
+
 @app.route('/register/email', methods=['POST'])
 def register_email():
     email = request.form.get('email')
