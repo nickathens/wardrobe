@@ -1,10 +1,15 @@
 import io
 import os
+import base64
 import pytest
 from unittest.mock import patch
 
 from app import app
 import app as app_module
+
+PNG_BYTES = base64.b64decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWNgYAAAAAUAAarVyFEAAAAASUVORK5CYII='
+)
 
 @pytest.fixture
 def client():
@@ -18,7 +23,7 @@ def test_index_route(client):
 
 def test_upload_route(client):
     data = {
-        'image': (io.BytesIO(b'mock image data'), 'test.png')
+        'image': (io.BytesIO(PNG_BYTES), 'test.png')
     }
     with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
          patch('app.openai.ChatCompletion.create') as chat_create, \
@@ -75,9 +80,36 @@ def test_upload_route_invalid_file_type(client):
     assert response.get_json() == {'error': 'Invalid file type'}
 
 
+def test_upload_route_invalid_image_content(client):
+    data = {
+        'image': (io.BytesIO(b'not really an image'), 'fake.png')
+    }
+    response = client.post(
+        '/upload',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'Invalid file type'}
+
+
+def test_upload_route_large_file(client):
+    big = io.BytesIO(b'x' * (3 * 1024 * 1024))
+    data = {
+        'image': (big, 'big.png')
+    }
+    response = client.post(
+        '/upload',
+        data=data,
+        content_type='multipart/form-data'
+    )
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'Invalid file type'}
+
+
 def test_upload_route_openai_error(client):
     data = {
-        'image': (io.BytesIO(b'mock image data'), 'test.png')
+        'image': (io.BytesIO(PNG_BYTES), 'test.png')
     }
     with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
          patch('app.openai.ChatCompletion.create', side_effect=app_module.openai.error.OpenAIError('fail')) as chat_create, \
@@ -92,15 +124,47 @@ def test_upload_route_openai_error(client):
             data=data,
             content_type='multipart/form-data'
         )
-        chat_create.assert_called_once()
+        assert chat_create.call_count == app_module.OPENAI_MAX_RETRIES
         img_create.assert_not_called()
     assert response.status_code == 502
     assert response.get_json() == {'error': 'OpenAI request failed'}
 
 
+def test_upload_route_openai_retry_success(client):
+    data = {
+        'image': (io.BytesIO(PNG_BYTES), 'test.png')
+    }
+    side_effect = [app_module.openai.error.OpenAIError('fail'), {
+        'choices': [{'message': {'content': 'Retry suggestion'}}]
+    }]
+    with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
+         patch('app.openai.ChatCompletion.create', side_effect=side_effect) as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        parse.return_value = {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        }
+        img_create.return_value = {
+            'data': [{'url': 'http://example.com/out.png'}]
+        }
+        response = client.post(
+            '/upload',
+            data=data,
+            content_type='multipart/form-data'
+        )
+        assert chat_create.call_count == 2
+        img_create.assert_called_once()
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'suggestions': ['Retry suggestion'],
+        'image_url': 'http://example.com/out.png'
+    }
+
+
 def test_parse_route(client):
     data = {
-        'image': (io.BytesIO(b'mock image data'), 'test.png')
+        'image': (io.BytesIO(PNG_BYTES), 'test.png')
     }
     response = client.post(
         '/parse',
@@ -162,17 +226,37 @@ def test_suggest_route_openai_error(client):
     with patch('app.openai.ChatCompletion.create', side_effect=app_module.openai.error.OpenAIError('fail')) as chat_create, \
          patch('app.openai.Image.create') as img_create:
         response = client.post('/suggest', data=data)
-        chat_create.assert_called_once()
+        assert chat_create.call_count == app_module.OPENAI_MAX_RETRIES
         img_create.assert_not_called()
     assert response.status_code == 502
     assert response.get_json() == {'error': 'OpenAI request failed'}
 
 
+def test_suggest_route_openai_retry_success(client):
+    data = {'description': 'casual outfit'}
+    side_effect = [app_module.openai.error.OpenAIError('fail'), {
+        'choices': [{'message': {'content': 'Retry desc'}}]
+    }]
+    with patch('app.openai.ChatCompletion.create', side_effect=side_effect) as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        img_create.return_value = {
+            'data': [{'url': 'http://example.com/desc_retry.png'}]
+        }
+        response = client.post('/suggest', data=data)
+        assert chat_create.call_count == 2
+        img_create.assert_called_once()
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'suggestions': ['Retry desc'],
+        'image_url': 'http://example.com/desc_retry.png'
+    }
+
+
 def test_compose_route(client):
     data = {
-        'body': (io.BytesIO(b'body data'), 'body.png'),
-        'clothes1': (io.BytesIO(b'shirt'), 'shirt.png'),
-        'clothes2': (io.BytesIO(b'pants'), 'pants.jpg'),
+        'body': (io.BytesIO(PNG_BYTES), 'body.png'),
+        'clothes1': (io.BytesIO(PNG_BYTES), 'shirt.png'),
+        'clothes2': (io.BytesIO(PNG_BYTES), 'pants.jpg'),
     }
     with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
          patch('app.openai.ChatCompletion.create') as chat_create, \
@@ -209,7 +293,7 @@ def test_compose_route(client):
 
 def test_compose_route_missing_body(client):
     data = {
-        'clothes1': (io.BytesIO(b'shirt'), 'shirt.png')
+        'clothes1': (io.BytesIO(PNG_BYTES), 'shirt.png')
     }
     response = client.post('/compose', data=data, content_type='multipart/form-data')
     assert response.status_code == 400
@@ -218,7 +302,7 @@ def test_compose_route_missing_body(client):
 
 def test_compose_route_no_clothes(client):
     data = {
-        'body': (io.BytesIO(b'body data'), 'body.png')
+        'body': (io.BytesIO(PNG_BYTES), 'body.png')
     }
     response = client.post('/compose', data=data, content_type='multipart/form-data')
     assert response.status_code == 400
@@ -227,8 +311,8 @@ def test_compose_route_no_clothes(client):
 
 def test_compose_route_invalid_file_type(client):
     data = {
-        'body': (io.BytesIO(b'body data'), 'body.txt'),
-        'clothes1': (io.BytesIO(b'shirt'), 'shirt.png')
+        'body': (io.BytesIO(PNG_BYTES), 'body.txt'),
+        'clothes1': (io.BytesIO(PNG_BYTES), 'shirt.png')
     }
     response = client.post('/compose', data=data, content_type='multipart/form-data')
     assert response.status_code == 400
@@ -237,8 +321,8 @@ def test_compose_route_invalid_file_type(client):
 
 def test_compose_route_openai_error(client):
     data = {
-        'body': (io.BytesIO(b'body data'), 'body.png'),
-        'clothes1': (io.BytesIO(b'shirt'), 'shirt.png')
+        'body': (io.BytesIO(PNG_BYTES), 'body.png'),
+        'clothes1': (io.BytesIO(PNG_BYTES), 'shirt.png')
     }
     with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
          patch('app.openai.ChatCompletion.create', side_effect=app_module.openai.error.OpenAIError('fail')) as chat_create, \
@@ -249,10 +333,39 @@ def test_compose_route_openai_error(client):
             'full_body': []
         }
         response = client.post('/compose', data=data, content_type='multipart/form-data')
-        chat_create.assert_called_once()
+        assert chat_create.call_count == app_module.OPENAI_MAX_RETRIES
         img_create.assert_not_called()
     assert response.status_code == 502
     assert response.get_json() == {'error': 'OpenAI request failed'}
+
+
+def test_compose_route_openai_retry_success(client):
+    data = {
+        'body': (io.BytesIO(PNG_BYTES), 'body.png'),
+        'clothes1': (io.BytesIO(PNG_BYTES), 'shirt.png')
+    }
+    side_effect = [app_module.openai.error.OpenAIError('fail'), {
+        'choices': [{'message': {'content': 'combo'}}]
+    }]
+    with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
+         patch('app.openai.ChatCompletion.create', side_effect=side_effect) as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        parse.return_value = {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        }
+        img_create.return_value = {
+            'data': [{'url': 'http://example.com/combo_retry.png'}]
+        }
+        response = client.post('/compose', data=data, content_type='multipart/form-data')
+        assert chat_create.call_count == 2
+        img_create.assert_called_once()
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'suggestions': ['combo'],
+        'composite_url': 'http://example.com/combo_retry.png'
+    }
 
 
 def test_register_email(client):
@@ -344,7 +457,7 @@ def test_parse_cleanup_on_failure(client):
         raise RuntimeError('boom')
 
     data = {
-        'image': (io.BytesIO(b'mock image data'), 'fail.png')
+        'image': (io.BytesIO(PNG_BYTES), 'fail.png')
     }
 
     class DummyTmp:
@@ -374,7 +487,7 @@ def test_parse_cleanup_on_failure(client):
 
 def test_parse_route_mask_keys(client):
     data = {
-        'image': (io.BytesIO(b'mock image data'), 'mask.png')
+        'image': (io.BytesIO(PNG_BYTES), 'mask.png')
     }
     response = client.post(
         '/parse',

@@ -1,5 +1,7 @@
 import os
 import logging
+import imghdr
+import time
 try:
     from flask import Flask, request, render_template, jsonify
 except Exception:  # pragma: no cover - fallback when Flask isn't installed
@@ -49,17 +51,72 @@ Base.metadata.create_all(engine)
 # Allowed upload types
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}
 ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg'}
+MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2 MB limit
+OPENAI_MAX_RETRIES = 3
 
 
 def _is_allowed_image(file) -> bool:
-    """Return True if ``file`` appears to be an allowed image."""
-    ext = os.path.splitext(getattr(file, 'filename', ''))[1].lower()
-    if ext in ALLOWED_EXTENSIONS:
-        return True
-    mime = getattr(file, 'mimetype', None)
-    if mime in ALLOWED_MIME_TYPES:
-        return True
-    return False
+    """Return True if ``file`` appears to be an allowed image.
+
+    The check verifies the file extension or MIME type, ensures the
+    content looks like an actual image using ``imghdr``, and enforces a
+    small size limit. The original file pointer is restored before
+    returning.
+    """
+
+    ext = os.path.splitext(getattr(file, "filename", ""))[1].lower()
+    mime = getattr(file, "mimetype", None)
+    if ext not in ALLOWED_EXTENSIONS and mime not in ALLOWED_MIME_TYPES:
+        return False
+
+    f = getattr(file, "stream", file)
+    try:
+        pos = f.tell()
+    except Exception:  # pragma: no cover - file lacks tell/seek
+        pos = None
+
+    try:
+        f.seek(0, os.SEEK_END)
+        size = f.tell()
+        f.seek(0)
+    except Exception:  # pragma: no cover - couldn't determine size
+        return False
+
+    if size > MAX_IMAGE_SIZE:
+        if pos is not None:
+            f.seek(pos)
+        return False
+
+    try:
+        sample = f.read(512)
+        f.seek(0)
+        kind = imghdr.what(None, sample)
+        if kind == "jpeg":
+            kind = "jpg"
+        if kind not in {"png", "jpg"}:
+            if pos is not None:
+                f.seek(pos)
+            return False
+    except Exception:
+        if pos is not None:
+            f.seek(pos)
+        return False
+
+    if pos is not None:
+        f.seek(pos)
+    return True
+
+
+def _call_openai_with_retry(func, *args, **kwargs):
+    """Call an OpenAI function with basic retry logic."""
+    for attempt in range(1, OPENAI_MAX_RETRIES + 1):
+        try:
+            return func(*args, **kwargs)
+        except openai.error.OpenAIError:
+            if attempt == OPENAI_MAX_RETRIES:
+                raise
+            logger.warning("OpenAI call failed, retrying (%s/%s)", attempt, OPENAI_MAX_RETRIES)
+            time.sleep(0.5)
 
 
 @app.route('/')
@@ -90,12 +147,13 @@ def upload():
     part_names = ", ".join(parts.keys()) if parts else "unknown parts"
     prompt = f"Suggest an outfit based on the clothing parts: {part_names}"
     try:
-        chat = openai.ChatCompletion.create(
+        chat = _call_openai_with_retry(
+            openai.ChatCompletion.create,
             messages=[{"role": "user", "content": prompt}],
             model="gpt-3.5-turbo",
         )
         suggestion_text = chat["choices"][0]["message"]["content"]
-        image = openai.Image.create(prompt=prompt)
+        image = _call_openai_with_retry(openai.Image.create, prompt=prompt)
         image_url = image["data"][0]["url"]
     except openai.error.OpenAIError:
         logger.exception("OpenAI request failed")
@@ -131,12 +189,13 @@ def suggest():
     description = request.form.get('description', '')
     prompt = f"Suggest an outfit for: {description}"
     try:
-        chat = openai.ChatCompletion.create(
+        chat = _call_openai_with_retry(
+            openai.ChatCompletion.create,
             messages=[{"role": "user", "content": prompt}],
             model="gpt-3.5-turbo",
         )
         suggestion_text = chat["choices"][0]["message"]["content"]
-        image = openai.Image.create(prompt=prompt)
+        image = _call_openai_with_retry(openai.Image.create, prompt=prompt)
         image_url = image["data"][0]["url"]
     except openai.error.OpenAIError:
         logger.exception("OpenAI request failed")
@@ -185,12 +244,13 @@ def compose():
         f"Combine body parts {part_names} with clothing items: {clothing_names}"
     )
     try:
-        chat = openai.ChatCompletion.create(
+        chat = _call_openai_with_retry(
+            openai.ChatCompletion.create,
             messages=[{"role": "user", "content": prompt}],
             model="gpt-3.5-turbo",
         )
         suggestion_text = chat["choices"][0]["message"]["content"]
-        image = openai.Image.create(prompt=prompt)
+        image = _call_openai_with_retry(openai.Image.create, prompt=prompt)
         image_url = image["data"][0]["url"]
     except openai.error.OpenAIError:
         logger.exception("OpenAI request failed")
