@@ -73,6 +73,11 @@ python clothseg.py --download-model
 
 This will store the model in `~/.u2net/u2net.pth` by default.
 
+## Virtual Try-On
+
+For realistic outfit visualisation you may integrate an external try-on engine. Open-source implementations such as [VITON-HD](https://github.com/OpenTalker/VITON-HD) can warp a garment image onto a full-body photo of the user. This repository does not bundle such a model, but the `/compose` API route can be adapted to call a dedicated try-on pipeline, typically requiring a GPU for best results.
+
+
 ## Registration
 
 Users can register using one of several methods:
