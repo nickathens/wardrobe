@@ -118,7 +118,15 @@ class ClothSegmenter:
         parts = ["upper_body", "lower_body", "full_body"]
 
         if self.model is None:  # pragma: no cover - dummy path
-            return {part: [] for part in parts}
+            width, height = self._get_image_size(image_path)
+            if width == 0 or height == 0:
+                return {part: [] for part in parts}
+            half = height // 2
+            return {
+                "upper_body": [[0, 0, width, half]],
+                "lower_body": [[0, half, width, height]],
+                "full_body": [[0, 0, width, height]],
+            }
 
         # Real inference path. This branch is not executed in tests as it
         # requires PyTorch and model weights.

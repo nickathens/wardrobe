@@ -143,7 +143,13 @@ def test_parse_route(client):
     )
     assert response.status_code == 200
     payload = response.get_json()
-    assert 'parts' in payload
+    assert payload == {
+        'parts': {
+            'upper_body': [[0, 0, 1, 0]],
+            'lower_body': [[0, 0, 1, 1]],
+            'full_body': [[0, 0, 1, 1]],
+        }
+    }
 
 def test_parse_route_no_file(client):
     response = client.post(
