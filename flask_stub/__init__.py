@@ -1,3 +1,6 @@
+import mimetypes
+
+
 class Request:
     def __init__(self, form=None, files=None):
         self.form = form or {}
@@ -8,6 +11,7 @@ class File:
     def __init__(self, stream, filename):
         self.stream = stream
         self.filename = filename
+        self.mimetype = mimetypes.guess_type(filename)[0]
 
     def save(self, path):
         with open(path, 'wb') as f:

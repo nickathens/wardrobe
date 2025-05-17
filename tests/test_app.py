@@ -5,6 +5,7 @@ import types
 import contextlib
 import pytest
 from unittest.mock import patch
+from flask_stub import File
 
 from app import app
 import app as app_module
@@ -564,3 +565,10 @@ def test_real_parser_with_weights():
         result = seg.parse(img_path)
 
     assert all(result[p] for p in ('upper_body', 'lower_body', 'full_body'))
+
+
+def test_is_allowed_image_uses_mimetype():
+    """File with disallowed extension should pass if mimetype is allowed."""
+    f = File(io.BytesIO(PNG_BYTES), 'foo.bad')
+    f.mimetype = 'image/png'
+    assert app_module._is_allowed_image(f)
