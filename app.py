@@ -5,6 +5,12 @@ except Exception:  # pragma: no cover - fallback when Flask isn't installed
     from flask_stub import Flask, request, render_template, jsonify
 from clothseg import ClothSegmenter
 try:
+    from sqlalchemy import Column, Integer, String, create_engine
+    from sqlalchemy.orm import declarative_base, sessionmaker
+except Exception:  # pragma: no cover - fallback when SQLAlchemy isn't installed
+    from sqlalchemy_stub import Column, Integer, String, create_engine
+    from sqlalchemy_stub import declarative_base, sessionmaker
+try:
     import openai  # type: ignore
 except Exception:  # pragma: no cover - fallback when OpenAI package is missing
     import openai_stub as openai
@@ -16,6 +22,23 @@ if openai.api_key is None and getattr(openai, "__name__", "") != "openai_stub":
 
 app = Flask(__name__)
 cloth_segmenter = ClothSegmenter()
+
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///:memory:")
+engine = create_engine(DATABASE_URL, echo=False, future=True)
+SessionLocal = sessionmaker(bind=engine)
+Base = declarative_base()
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    identifier = Column(String, unique=True, nullable=False)
+    method = Column(String, nullable=False)
+    password = Column(String)
+
+
+Base.metadata.create_all(engine)
 
 # Allowed upload types
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}
@@ -32,8 +55,6 @@ def _is_allowed_image(file) -> bool:
         return True
     return False
 
-# Simple in-memory user store. In a real application this would be a database.
-users = {}
 
 @app.route('/')
 def index():
@@ -163,7 +184,9 @@ def register_email():
     password = request.form.get('password')
     if not email or not password:
         return jsonify({'error': 'Email and password required'}), 400
-    users[email] = {'method': 'email', 'password': password}
+    with SessionLocal() as session:
+        session.add(User(identifier=email, method='email', password=password))
+        session.commit()
     return jsonify({'message': f'Registered {email} via email'})
 
 
@@ -172,7 +195,9 @@ def register_phone():
     phone = request.form.get('phone')
     if not phone:
         return jsonify({'error': 'Phone number required'}), 400
-    users[phone] = {'method': 'phone'}
+    with SessionLocal() as session:
+        session.add(User(identifier=phone, method='phone'))
+        session.commit()
     return jsonify({'message': f'Registered {phone} via phone'})
 
 
@@ -181,7 +206,9 @@ def register_google():
     token = request.form.get('token')
     if not token:
         return jsonify({'error': 'Google token required'}), 400
-    users[token] = {'method': 'google'}
+    with SessionLocal() as session:
+        session.add(User(identifier=token, method='google'))
+        session.commit()
     return jsonify({'message': 'Registered via Google'})
 
 
@@ -190,8 +217,23 @@ def register_facebook():
     token = request.form.get('token')
     if not token:
         return jsonify({'error': 'Facebook token required'}), 400
-    users[token] = {'method': 'facebook'}
+    with SessionLocal() as session:
+        session.add(User(identifier=token, method='facebook'))
+        session.commit()
     return jsonify({'message': 'Registered via Facebook'})
+
+
+@app.route('/get_user', methods=['POST'])
+def get_user():
+    """Return basic user info for testing purposes."""
+    identifier = request.form.get('identifier')
+    if not identifier:
+        return jsonify({'error': 'identifier required'}), 400
+    with SessionLocal() as session:
+        user = session.query(User).filter_by(identifier=identifier).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        return jsonify({'identifier': user.identifier, 'method': user.method})
 
 if __name__ == '__main__':
     flag = os.getenv('FLASK_DEBUG')

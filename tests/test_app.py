@@ -208,12 +208,35 @@ def test_register_email(client):
     payload = response.get_json()
     assert payload == {'message': 'Registered user@example.com via email'}
 
+    # Verify the user was stored and can be retrieved in a new request
+    response = client.post('/get_user', data={'identifier': 'user@example.com'})
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'identifier': 'user@example.com',
+        'method': 'email'
+    }
+
 
 def test_register_phone_missing_number(client):
     response = client.post('/register/phone', data={})
     assert response.status_code == 400
     payload = response.get_json()
     assert payload == {'error': 'Phone number required'}
+
+
+def test_register_phone_persists(client):
+    data = {'phone': '1234567890'}
+    response = client.post('/register/phone', data=data)
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'message': 'Registered 1234567890 via phone'
+    }
+    response = client.post('/get_user', data={'identifier': '1234567890'})
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'identifier': '1234567890',
+        'method': 'phone'
+    }
 
 
 def test_parse_cleanup_on_failure(client):
