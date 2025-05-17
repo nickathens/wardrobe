@@ -34,3 +34,30 @@ button {
   height: auto;
   margin-top: 10px;
 }
+
+.preview {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.preview img {
+  max-width: 100%;
+  height: auto;
+  margin-top: 5px;
+}
+
+.loading {
+  display: none;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.loading.active {
+  display: block;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+  text-align: center;
+}

@@ -4,14 +4,37 @@ document.addEventListener('DOMContentLoaded', () => {
   const composeForm = document.getElementById('compose-form');
   const results = document.getElementById('results');
   const compositeResult = document.getElementById('composite-result');
+  const uploadPreview = document.getElementById('upload-preview');
+  const composePreview = document.getElementById('compose-preview');
+  const uploadLoading = document.getElementById('upload-loading');
+  const suggestLoading = document.getElementById('suggest-loading');
+  const composeLoading = document.getElementById('compose-loading');
+
+  const uploadInput = uploadForm.querySelector('input[name="image"]');
+  const bodyInput = composeForm.querySelector('input[name="body"]');
+  const clothesInput = composeForm.querySelector('input[name="clothes"]');
+
+  uploadInput.addEventListener('change', () => {
+    previewFiles(uploadInput.files, uploadPreview, true);
+  });
+
+  bodyInput.addEventListener('change', () => {
+    previewFiles(bodyInput.files, composePreview, true);
+  });
+
+  clothesInput.addEventListener('change', () => {
+    previewFiles(clothesInput.files, composePreview, false);
+  });
 
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    showLoading(uploadLoading);
     const formData = new FormData(uploadForm);
     const response = await fetch('/upload', {
       method: 'POST',
       body: formData
     });
+    hideLoading(uploadLoading);
     if (response.ok) {
       const data = await response.json();
       showSuggestions(data.suggestions, data.image_url);
@@ -29,11 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   suggestForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    showLoading(suggestLoading);
     const formData = new FormData(suggestForm);
     const response = await fetch('/suggest', {
       method: 'POST',
       body: formData
     });
+    hideLoading(suggestLoading);
     if (response.ok) {
       const data = await response.json();
       showSuggestions(data.suggestions, data.image_url);
@@ -51,11 +76,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   composeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    showLoading(composeLoading);
     const formData = new FormData(composeForm);
     const response = await fetch('/compose', {
       method: 'POST',
       body: formData
     });
+    hideLoading(composeLoading);
     if (response.ok) {
       const data = await response.json();
       showComposite(data.suggestions, data.composite_url);
@@ -120,7 +147,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function previewFiles(files, container, replace) {
+    if (replace) {
+      container.textContent = '';
+    }
+    Array.from(files).forEach(file => {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      container.appendChild(img);
+    });
+  }
+
+  function showLoading(el) {
+    el.classList.add('active');
+  }
+
+  function hideLoading(el) {
+    el.classList.remove('active');
+  }
+
   function showError(container, message) {
-    container.textContent = `Error: ${message}`;
+    container.textContent = '';
+    const p = document.createElement('p');
+    p.className = 'error';
+    p.textContent = `Error: ${message}`;
+    container.appendChild(p);
   }
 });
