@@ -1,6 +1,8 @@
 import io
 import os
 import base64
+import types
+import contextlib
 import pytest
 from unittest.mock import patch
 
@@ -470,3 +472,89 @@ def test_missing_api_key_real_openai():
         sys.modules.pop('openai', None)
         sys.modules.pop('app', None)
         importlib.import_module('app')
+
+
+def test_real_parser_with_weights():
+    from clothseg import ClothSegmenter
+
+    class DummyArray:
+        def __init__(self, arr):
+            self.arr = arr
+
+        def tolist(self):
+            return self.arr
+
+    class DummyTensor:
+        def __init__(self, arr):
+            self.array = arr
+
+        def float(self):
+            return self
+
+        def permute(self, *axes):
+            return self
+
+        def unsqueeze(self, dim):
+            return self
+
+        def __truediv__(self, val):
+            return self
+
+        def __gt__(self, val):
+            def convert(a):
+                if isinstance(a, list):
+                    return [convert(x) for x in a]
+                return 1 if a > val else 0
+            return DummyTensor(convert(self.array))
+
+        def __getitem__(self, item):
+            return DummyTensor(self.array[item])
+
+        def squeeze(self):
+            return self
+
+        def cpu(self):
+            return self
+
+        def numpy(self):
+            return DummyArray(self.array)
+
+    class DummyModel:
+        def __call__(self, tensor):
+            h = len(tensor.array)
+            w = len(tensor.array[0]) if h else 0
+            ones = [[[1 for _ in range(w)] for _ in range(h)] for _ in range(3)]
+            return DummyTensor([ones])
+
+        def eval(self):
+            pass
+
+    class DummyTorch:
+        def __init__(self):
+            self.jit = types.SimpleNamespace(load=lambda path: DummyModel())
+
+        def from_numpy(self, arr):
+            return DummyTensor(arr)
+
+        def no_grad(self):
+            return contextlib.nullcontext()
+
+    class DummyImage:
+        def open(self, path):
+            class Img:
+                def convert(self, mode):
+                    return self
+            return Img()
+
+    class DummyNP:
+        def array(self, img):
+            return [[[0]]]
+
+    img_path = os.path.join(os.path.dirname(__file__), 'small.png')
+    with patch('clothseg.torch', DummyTorch(), create=True), \
+         patch('clothseg.Image', DummyImage(), create=True), \
+         patch('clothseg.np', DummyNP(), create=True):
+        seg = ClothSegmenter(model_path='dummy')
+        result = seg.parse(img_path)
+
+    assert all(result[p] for p in ('upper_body', 'lower_body', 'full_body'))
