@@ -77,6 +77,10 @@ This will store the model in `~/.u2net/u2net.pth` by default.
 
 For realistic outfit visualisation you may integrate an external try-on engine. Open-source implementations such as [VITON-HD](https://github.com/OpenTalker/VITON-HD) can warp a garment image onto a full-body photo of the user. This repository does not bundle such a model, but the `/compose` API route can be adapted to call a dedicated try-on pipeline, typically requiring a GPU for best results.
 
+## Outfit Scoring with GPT-4
+
+The application uses OpenAI's chat completions API to generate outfit suggestions. By default it calls the `gpt-3.5-turbo` model, but you can switch to GPT-4 by setting the `model` parameter in `app.py` to `gpt-4`. GPT-4 can reason about style compatibility using textual metadata for each garment, serving as a lighter alternative to specialised transformer models.
+
 
 ## Registration
 
