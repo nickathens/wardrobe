@@ -7,7 +7,8 @@ The `templates/index.html` page links to a small stylesheet under `static/styles
 The repository now integrates a U^2-Net based cloth segmentation model. When the
 pre-trained weights are available, real segmentation masks are produced for
 images sent to the `/parse` endpoint. If the weights are missing, the parser
-falls back to dummy data so the rest of the application continues to work.
+computes a very coarse split of the image to approximate upper and lower body
+regions so the rest of the application continues to work.
 
 ## Setup
 

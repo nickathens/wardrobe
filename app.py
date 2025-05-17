@@ -1,5 +1,6 @@
 import os
 import logging
+import imghdr
 try:
     from flask import Flask, request, render_template, jsonify
 except Exception:  # pragma: no cover - fallback when Flask isn't installed
@@ -49,17 +50,59 @@ Base.metadata.create_all(engine)
 # Allowed upload types
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}
 ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg'}
+MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2 MB limit
 
 
 def _is_allowed_image(file) -> bool:
-    """Return True if ``file`` appears to be an allowed image."""
-    ext = os.path.splitext(getattr(file, 'filename', ''))[1].lower()
-    if ext in ALLOWED_EXTENSIONS:
-        return True
-    mime = getattr(file, 'mimetype', None)
-    if mime in ALLOWED_MIME_TYPES:
-        return True
-    return False
+    """Return True if ``file`` appears to be an allowed image.
+
+    The check verifies the file extension or MIME type, ensures the
+    content looks like an actual image using ``imghdr``, and enforces a
+    small size limit. The original file pointer is restored before
+    returning.
+    """
+
+    ext = os.path.splitext(getattr(file, "filename", ""))[1].lower()
+    mime = getattr(file, "mimetype", None)
+    if ext not in ALLOWED_EXTENSIONS and mime not in ALLOWED_MIME_TYPES:
+        return False
+
+    f = getattr(file, "stream", file)
+    try:
+        pos = f.tell()
+    except Exception:  # pragma: no cover - file lacks tell/seek
+        pos = None
+
+    try:
+        f.seek(0, os.SEEK_END)
+        size = f.tell()
+        f.seek(0)
+    except Exception:  # pragma: no cover - couldn't determine size
+        return False
+
+    if size > MAX_IMAGE_SIZE:
+        if pos is not None:
+            f.seek(pos)
+        return False
+
+    try:
+        sample = f.read(512)
+        f.seek(0)
+        kind = imghdr.what(None, sample)
+        if kind == "jpeg":
+            kind = "jpg"
+        if kind not in {"png", "jpg"}:
+            if pos is not None:
+                f.seek(pos)
+            return False
+    except Exception:
+        if pos is not None:
+            f.seek(pos)
+        return False
+
+    if pos is not None:
+        f.seek(pos)
+    return True
 
 
 @app.route('/')
