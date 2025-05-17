@@ -134,6 +134,73 @@ def test_suggest_route(client):
     }
 
 
+def test_compose_route(client):
+    data = {
+        'body': (io.BytesIO(b'body data'), 'body.png'),
+        'clothes1': (io.BytesIO(b'shirt'), 'shirt.png'),
+        'clothes2': (io.BytesIO(b'pants'), 'pants.jpg'),
+    }
+    with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
+         patch('app.openai.ChatCompletion.create') as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        parse.return_value = {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        }
+        chat_create.return_value = {
+            'choices': [{'message': {'content': 'combo'}}]
+        }
+        img_create.return_value = {
+            'data': [{'url': 'http://example.com/combo.png'}]
+        }
+        response = client.post(
+            '/compose',
+            data=data,
+            content_type='multipart/form-data'
+        )
+        parse.assert_called_once()
+        chat_create.assert_called_once_with(
+            messages=[{'role': 'user', 'content':
+                       'Combine body parts upper_body, lower_body, full_body with clothing items: shirt, pants'}],
+            model='gpt-3.5-turbo',
+        )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload == {
+        'suggestions': ['combo'],
+        'image_url': 'http://example.com/combo.png'
+    }
+
+
+def test_compose_route_missing_body(client):
+    data = {
+        'clothes1': (io.BytesIO(b'shirt'), 'shirt.png')
+    }
+    response = client.post('/compose', data=data, content_type='multipart/form-data')
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'No body provided'}
+
+
+def test_compose_route_no_clothes(client):
+    data = {
+        'body': (io.BytesIO(b'body data'), 'body.png')
+    }
+    response = client.post('/compose', data=data, content_type='multipart/form-data')
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'No clothes provided'}
+
+
+def test_compose_route_invalid_file_type(client):
+    data = {
+        'body': (io.BytesIO(b'body data'), 'body.txt'),
+        'clothes1': (io.BytesIO(b'shirt'), 'shirt.png')
+    }
+    response = client.post('/compose', data=data, content_type='multipart/form-data')
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'Invalid file type'}
+
+
 def test_register_email(client):
     data = {'email': 'user@example.com', 'password': 'secret'}
     response = client.post('/register/email', data=data)
