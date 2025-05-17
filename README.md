@@ -21,10 +21,12 @@ pip install -r requirements.txt
 
 The repository bundles lightweight replacements for `flask`, `werkzeug`,
 `openai`, and `pytest` under the names `flask_stub`, `werkzeug_stub`,
-`openai_stub`, and a minimal `pytest` package. These allow the code to run in
-environments where the real dependencies are missing. Installing the genuine
-packages with `pip install -r requirements.txt` will override the stubs and is
-required for production use.
+`openai_stub`, and a minimal `pytest` package. These stubs exist solely so the
+test suite can run in environments without network access. For any real usage
+you must install the genuine packages with `pip install -r requirements.txt`.
+Once the real packages are installed, remove the stub directories (or run the
+application from outside the repository) so that ``PYTHONPATH`` does not pick up
+the stubs.
 
 ### Environment variables
 
@@ -52,8 +54,9 @@ data you send will therefore be transmitted to a third-party service
 (OpenAI) for processing.
 
 For local tests the repository bundles an `openai_stub` module that mimics the
-API without making network calls. Replace this stub with the genuine `openai`
-package in production so the application can contact OpenAI's servers.
+API without making network calls. This stub is only meant for running the test
+suite. Replace it with the genuine `openai` package in production so the
+application can contact OpenAI's servers.
 
 ## Cloth Segmentation Model
 

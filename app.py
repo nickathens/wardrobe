@@ -3,6 +3,7 @@ import logging
 try:
     from flask import Flask, request, render_template, jsonify
 except Exception:  # pragma: no cover - fallback when Flask isn't installed
+    # The stub is only used for running the test suite without real Flask
     from flask_stub import Flask, request, render_template, jsonify
 from clothseg import ClothSegmenter
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,11 +11,13 @@ try:
     from sqlalchemy import Column, Integer, String, create_engine
     from sqlalchemy.orm import declarative_base, sessionmaker
 except Exception:  # pragma: no cover - fallback when SQLAlchemy isn't installed
+    # These stubs allow tests to run without the real dependency
     from sqlalchemy_stub import Column, Integer, String, create_engine
     from sqlalchemy_stub import declarative_base, sessionmaker
 try:
     import openai  # type: ignore
 except Exception:  # pragma: no cover - fallback when OpenAI package is missing
+    # Test environments use a lightweight OpenAI stub
     import openai_stub as openai
 import tempfile
 
