@@ -262,7 +262,16 @@ def test_register_email(client):
     payload = response.get_json()
     assert payload == {'message': 'Registered user@example.com via email'}
 
-    # Verify the user was stored and can be retrieved in a new request
+    # Verify the user was stored with a hashed password
+    with app_module.SessionLocal() as session:
+        user = session.query(app_module.User).filter_by(
+            identifier='user@example.com'
+        ).first()
+        assert user is not None
+        assert user.password != 'secret'
+        assert app_module.check_password_hash(user.password, 'secret')
+
+    # Verify the user can be retrieved in a new request
     response = client.post('/get_user', data={'identifier': 'user@example.com'})
     assert response.status_code == 200
     assert response.get_json() == {
