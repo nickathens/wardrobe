@@ -115,17 +115,10 @@ class ClothSegmenter:
         method returns dummy segmentation data so the rest of the
         application can function without the heavy dependency.
         """
+        parts = ["upper_body", "lower_body", "full_body"]
+
         if self.model is None:  # pragma: no cover - dummy path
-            width, height = self._get_image_size(image_path)
-            if width <= 0 or height <= 0:
-                parts = ["upper_body", "lower_body", "full_body"]
-                return {part: [] for part in parts}
-            mid = height // 2
-            return {
-                "upper_body": [[0, 0, width, mid]],
-                "lower_body": [[0, mid, width, height]],
-                "full_body": [[0, 0, width, height]],
-            }
+            return {part: [] for part in parts}
 
         # Real inference path. This branch is not executed in tests as it
         # requires PyTorch and model weights.
@@ -135,7 +128,6 @@ class ClothSegmenter:
             tensor = tensor.unsqueeze(0)
             output = self.model(tensor)[0]
             masks = output > 0.5
-            parts = ["upper_body", "lower_body", "full_body"]
             return {p: m.squeeze().cpu().numpy().tolist() for p, m in zip(parts, masks)}
 
 
