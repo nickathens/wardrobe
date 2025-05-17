@@ -57,9 +57,10 @@ data you send will therefore be transmitted to a third-party service
 (OpenAI) for processing.
 
 For local tests the repository bundles an `openai_stub` module that mimics the
-API without making network calls. This stub is only meant for running the test
-suite. Replace it with the genuine `openai` package in production so the
-application can contact OpenAI's servers.
+API without making network calls.  The stub now performs basic validation and
+raises a custom `OpenAIError` when invalid input is provided so tests can cover
+error conditions.  Replace it with the genuine `openai` package in production so
+the application can contact OpenAI's servers.
 
 ## Cloth Segmentation Model
 
