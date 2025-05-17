@@ -89,12 +89,13 @@ def _is_allowed_image(file) -> bool:
         sample = f.read(512)
         f.seek(0)
         kind = imghdr.what(None, sample)
-        if kind == "jpeg":
-            kind = "jpg"
-        if kind not in {"png", "jpg"}:
-            if pos is not None:
-                f.seek(pos)
-            return False
+        if size > 0:
+            if kind == "jpeg":
+                kind = "jpg"
+            if kind not in {"png", "jpg"}:
+                if pos is not None:
+                    f.seek(pos)
+                return False
     except Exception:
         if pos is not None:
             f.seek(pos)
@@ -168,6 +169,30 @@ def parse_image():
         if os.path.exists(temp_path):
             os.remove(temp_path)
     return jsonify({'parts': parts})
+
+
+@app.route('/analyze', methods=['POST'])
+def analyze_image():
+    """Return segmentation parts and simple classification."""
+    file = request.files.get('image')
+    if file is None or file.filename == '':
+        return jsonify({'error': 'No file provided'}), 400
+    if not _is_allowed_image(file):
+        return jsonify({'error': 'Invalid file type'}), 400
+
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    temp_path = tmp.name
+    tmp.close()
+    file.save(temp_path)
+    try:
+        parts = cloth_segmenter.parse(temp_path)
+        attributes = cloth_segmenter.classify(temp_path, parts)
+    except Exception:
+        return jsonify({'error': 'Segmentation failed'}), 500
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+    return jsonify({'parts': parts, 'attributes': attributes})
 
 @app.route('/suggest', methods=['POST'])
 def suggest():
