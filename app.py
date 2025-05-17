@@ -193,7 +193,7 @@ def compose():
         logger.exception("OpenAI request failed")
         return jsonify({"error": "OpenAI request failed"}), 502
 
-    return jsonify({'suggestions': [suggestion_text], 'image_url': image_url})
+    return jsonify({'suggestions': [suggestion_text], 'composite_url': image_url})
 
 
 @app.route('/register/email', methods=['POST'])

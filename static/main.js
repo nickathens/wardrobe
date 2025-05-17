@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const suggestForm = document.getElementById('suggest-form');
   const composeForm = document.getElementById('compose-form');
   const results = document.getElementById('results');
+  const compositeResult = document.getElementById('composite-result');
 
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -34,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
       body: formData
     });
     const data = await response.json();
-    showSuggestions(data.suggestions, data.image_url);
+    showComposite(data.suggestions, data.composite_url);
   });
 
   function showSuggestions(suggestions, imageUrl) {
@@ -58,6 +59,31 @@ document.addEventListener('DOMContentLoaded', () => {
       img.src = imageUrl;
       img.alt = 'Outfit suggestion';
       results.appendChild(img);
+    }
+  }
+
+  function showComposite(suggestions, compositeUrl) {
+    compositeResult.textContent = '';
+
+    if (compositeUrl) {
+      const img = document.createElement('img');
+      img.src = compositeUrl;
+      img.alt = 'Composite outfit';
+      compositeResult.appendChild(img);
+    }
+
+    if (suggestions && suggestions.length) {
+      const heading = document.createElement('h3');
+      heading.textContent = 'Suggestions:';
+      compositeResult.appendChild(heading);
+
+      const list = document.createElement('ul');
+      suggestions.forEach(s => {
+        const item = document.createElement('li');
+        item.textContent = s;
+        list.appendChild(item);
+      });
+      compositeResult.appendChild(list);
     }
   }
 });
