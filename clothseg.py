@@ -2,6 +2,7 @@
 
 import os
 from typing import Dict, List
+import struct
 
 try:
     import torch
@@ -69,6 +70,44 @@ class ClothSegmenter:
             except Exception:
                 self.model = None
 
+    @staticmethod
+    def _get_image_size(path: str) -> tuple[int, int]:
+        """Return ``(width, height)`` for a PNG or JPEG image.
+
+        This helper avoids external dependencies by reading the image header
+        directly. If the size cannot be determined, ``(0, 0)`` is returned.
+        """
+        try:
+            with open(path, "rb") as f:
+                head = f.read(24)
+                if len(head) >= 24 and head.startswith(b"\211PNG\r\n\032\n") and head[12:16] == b"IHDR":
+                    width, height = struct.unpack(">II", head[16:24])
+                    return int(width), int(height)
+                if head[:2] == b"\xff\xd8":
+                    f.seek(2)
+                    while True:
+                        byte = f.read(1)
+                        if not byte:
+                            break
+                        if byte != b"\xff":
+                            continue
+                        marker = f.read(1)
+                        while marker == b"\xff":
+                            marker = f.read(1)
+                        if marker in b"\xc0\xc1\xc2\xc3\xc5\xc6\xc7\xc9\xca\xcb\xcd\xce\xcf":
+                            f.read(3)
+                            height, width = struct.unpack(">HH", f.read(4))
+                            return int(width), int(height)
+                        else:
+                            size_data = f.read(2)
+                            if len(size_data) != 2:
+                                break
+                            size = struct.unpack(">H", size_data)[0]
+                            f.seek(size - 2, 1)
+        except Exception:  # pragma: no cover - fallback when parsing fails
+            pass
+        return 0, 0
+
     def parse(self, image_path: str) -> Dict[str, List]:
         """Return segmentation masks for the supplied image.
 
@@ -77,12 +116,16 @@ class ClothSegmenter:
         application can function without the heavy dependency.
         """
         if self.model is None:  # pragma: no cover - dummy path
-            parts = [
-                "upper_body",
-                "lower_body",
-                "full_body",
-            ]
-            return {part: [] for part in parts}
+            width, height = self._get_image_size(image_path)
+            if width <= 0 or height <= 0:
+                parts = ["upper_body", "lower_body", "full_body"]
+                return {part: [] for part in parts}
+            mid = height // 2
+            return {
+                "upper_body": [[0, 0, width, mid]],
+                "lower_body": [[0, mid, width, height]],
+                "full_body": [[0, 0, width, height]],
+            }
 
         # Real inference path. This branch is not executed in tests as it
         # requires PyTorch and model weights.

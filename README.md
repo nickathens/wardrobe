@@ -7,7 +7,8 @@ The `templates/index.html` page links to a small stylesheet under `static/styles
 The repository now integrates a U^2-Net based cloth segmentation model. When the
 pre-trained weights are available, real segmentation masks are produced for
 images sent to the `/parse` endpoint. If the weights are missing, the parser
-falls back to dummy data so the rest of the application continues to work.
+computes a very coarse split of the image to approximate upper and lower body
+regions so the rest of the application continues to work.
 
 ## Setup
 
@@ -57,9 +58,10 @@ data you send will therefore be transmitted to a third-party service
 (OpenAI) for processing.
 
 For local tests the repository bundles an `openai_stub` module that mimics the
-API without making network calls. This stub is only meant for running the test
-suite. Replace it with the genuine `openai` package in production so the
-application can contact OpenAI's servers.
+API without making network calls.  The stub now performs basic validation and
+raises a custom `OpenAIError` when invalid input is provided so tests can cover
+error conditions.  Replace it with the genuine `openai` package in production so
+the application can contact OpenAI's servers.
 
 ## Cloth Segmentation Model
 
