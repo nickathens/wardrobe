@@ -427,6 +427,30 @@ def test_parse_route_mask_keys(client):
     assert set(payload.get('parts', {}).keys()) == {'upper_body', 'lower_body', 'full_body'}
 
 
+def test_analyze_route(client):
+    data = {
+        'image': (io.BytesIO(PNG_BYTES), 'mask.png')
+    }
+    with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
+         patch.object(app_module.cloth_segmenter, 'classify') as classify:
+        parse.return_value = {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        }
+        classify.return_value = {'category': 'shirt', 'color': 'red'}
+        response = client.post('/analyze', data=data, content_type='multipart/form-data')
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'parts': {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        },
+        'attributes': {'category': 'shirt', 'color': 'red'}
+    }
+
+
 def test_register_email_missing_fields(client):
     response = client.post('/register/email', data={})
     assert response.status_code == 400
@@ -663,3 +687,11 @@ def test_parse_route_with_real_model(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert all(payload['parts'][p] for p in ('upper_body', 'lower_body', 'full_body'))
+
+
+def test_cloth_classifier_default():
+    from clothseg import ClothClassifier
+    clf = ClothClassifier()
+    assert clf.predict(1.5) == 'dress'
+    assert clf.predict(0.5) == 'pants'
+    assert clf.predict(1.0) == 'shirt'

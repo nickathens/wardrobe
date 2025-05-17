@@ -1,15 +1,80 @@
 """U\u00b2-Net-based cloth segmentation utilities."""
 
 import os
+import json
 from typing import Dict, List
 import struct
 
 try:
+    import cv2
+except Exception:  # pragma: no cover - optional dependency
+    cv2 = None
+
+try:
     import torch
-    from PIL import Image
-    import numpy as np
-except ImportError:  # pragma: no cover - optional dependencies
+except Exception:  # pragma: no cover - optional dependency
     torch = None
+
+try:
+    from PIL import Image
+except Exception:  # pragma: no cover - optional dependency
+    Image = None
+
+try:
+    import numpy as np
+except Exception:  # pragma: no cover - optional dependency
+    np = None
+
+
+class ClothClassifier:
+    """Threshold-based garment category predictor."""
+
+    DEFAULT_MODEL_PATH = os.path.join(
+        os.path.expanduser("~"), ".wardrobe", "classifier.json"
+    )
+
+    def __init__(self, model_path: str | None = None):
+        self.model_path = (
+            model_path
+            or (
+                self.DEFAULT_MODEL_PATH if os.path.exists(self.DEFAULT_MODEL_PATH) else None
+            )
+        )
+        self.classes = ["shirt", "pants", "dress"]
+        self.thresholds = [1.3, 0.8]  # dress, shirt
+        self.weights = None
+        self.bias = None
+        if self.model_path and os.path.exists(self.model_path):
+            try:  # pragma: no cover - external file
+                with open(self.model_path, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                if "classes" in data:
+                    self.classes = data["classes"]
+                if "thresholds" in data:
+                    self.thresholds = data["thresholds"]
+                self.weights = data.get("weights")
+                self.bias = data.get("bias")
+            except Exception:
+                self.weights = None
+                self.bias = None
+        if self.weights is None:
+            self.weights = None
+            self.bias = None
+
+    def predict(self, ratio: float) -> str:
+        if self.weights is not None:
+            x1 = ratio
+            x2 = ratio * ratio
+            scores = [w[0] * x1 + w[1] * x2 + b for w, b in zip(self.weights, self.bias)]
+            idx = scores.index(max(scores))
+            return self.classes[idx]
+        dress_thres, shirt_thres = self.thresholds
+        if ratio > dress_thres:
+            return "dress"
+        elif ratio > shirt_thres:
+            return "shirt"
+        else:
+            return "pants"
 
 
 class ClothSegmenter:
@@ -49,13 +114,15 @@ class ClothSegmenter:
         torch.hub.download_url_to_file(cls.MODEL_URL, dest, progress=True)
         return dest
 
-    def __init__(self, model_path: str | None = None):
+    def __init__(self, model_path: str | None = None, classifier_path: str | None = None):
         """Initialise the segmenter.
 
         Parameters
         ----------
         model_path : str | None
             Optional path to a pre-trained U2Net cloth segmentation model.
+        classifier_path : str | None
+            Optional path to a saved classifier used for garment category prediction.
         """
         if model_path is None:
             model_path = (
@@ -63,6 +130,7 @@ class ClothSegmenter:
             )
         self.model_path = model_path
         self.model = None
+        self.classifier = ClothClassifier(classifier_path)
         if torch is not None and self.model_path is not None:
             try:  # pragma: no cover - external file loading
                 self.model = torch.jit.load(self.model_path)
@@ -108,6 +176,75 @@ class ClothSegmenter:
             pass
         return 0, 0
 
+    def _parse_grabcut(self, image_path: str) -> Dict[str, List]:
+        """Return simple masks using OpenCV's GrabCut if available."""
+        if cv2 is None or np is None:
+            return {}
+        img = cv2.imread(image_path)
+        if img is None:
+            return {}
+        mask = np.zeros(img.shape[:2], np.uint8)
+        rect = (1, 1, img.shape[1] - 2, img.shape[0] - 2)
+        bgdModel = np.zeros((1, 65), np.float64)
+        fgdModel = np.zeros((1, 65), np.float64)
+        try:  # pragma: no cover - requires cv2
+            cv2.grabCut(img, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
+        except Exception:  # pragma: no cover - grabcut failure
+            return {}
+        mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype("uint8")
+        if mask2.sum() == 0:
+            return {}
+        ys, xs = np.where(mask2 == 1)
+        left, right = int(xs.min()), int(xs.max())
+        top, bottom = int(ys.min()), int(ys.max())
+        mid = (top + bottom) // 2
+        return {
+            "upper_body": [[left, top, right, mid]],
+            "lower_body": [[left, mid, right, bottom]],
+            "full_body": [[left, top, right, bottom]],
+        }
+
+    def classify(self, image_path: str, parts: Dict[str, List]) -> Dict[str, str]:
+        """Return garment category and a basic colour estimate."""
+        if cv2 is None:
+            return {"category": "unknown", "color": "unknown"}
+        full = parts.get("full_body")
+        if not full:
+            return {"category": "unknown", "color": "unknown"}
+        x1, y1, x2, y2 = full[0]
+        img = cv2.imread(image_path)
+        if img is None:
+            return {"category": "unknown", "color": "unknown"}
+        region = img[y1:y2, x1:x2]
+        if region.size == 0:
+            return {"category": "unknown", "color": "unknown"}
+        h, w = region.shape[:2]
+        ratio = h / w if w else 0
+        category = self.classifier.predict(ratio)
+        avg_bgr = region.mean(axis=(0, 1))
+        hsv = cv2.cvtColor(avg_bgr.reshape(1, 1, 3).astype("uint8"), cv2.COLOR_BGR2HSV)[0, 0]
+        hval, sval, vval = hsv
+        if vval > 200 and sval < 30:
+            color = "white"
+        elif vval < 50:
+            color = "black"
+        elif sval < 40:
+            color = "gray"
+        else:
+            if hval < 15 or hval >= 165:
+                color = "red"
+            elif hval < 30:
+                color = "orange"
+            elif hval < 45:
+                color = "yellow"
+            elif hval < 75:
+                color = "green"
+            elif hval < 130:
+                color = "blue"
+            else:
+                color = "purple"
+        return {"category": category, "color": color}
+
     def parse(self, image_path: str) -> Dict[str, List]:
         """Return segmentation masks for the supplied image.
 
@@ -128,7 +265,10 @@ class ClothSegmenter:
                 except Exception:
                     self.model = None
 
-        if self.model is None:  # pragma: no cover - dummy path
+        if self.model is None:
+            parts_gc = self._parse_grabcut(image_path)
+            if parts_gc:
+                return parts_gc
             width, height = self._get_image_size(image_path)
             if width == 0 or height == 0:
                 return {part: [] for part in parts}
