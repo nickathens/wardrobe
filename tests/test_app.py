@@ -427,6 +427,30 @@ def test_parse_route_mask_keys(client):
     assert set(payload.get('parts', {}).keys()) == {'upper_body', 'lower_body', 'full_body'}
 
 
+def test_analyze_route(client):
+    data = {
+        'image': (io.BytesIO(PNG_BYTES), 'mask.png')
+    }
+    with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
+         patch.object(app_module.cloth_segmenter, 'classify') as classify:
+        parse.return_value = {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        }
+        classify.return_value = {'category': 'shirt', 'color': 'red'}
+        response = client.post('/analyze', data=data, content_type='multipart/form-data')
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'parts': {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        },
+        'attributes': {'category': 'shirt', 'color': 'red'}
+    }
+
+
 def test_register_email_missing_fields(client):
     response = client.post('/register/email', data={})
     assert response.status_code == 400
@@ -663,3 +687,21 @@ def test_parse_route_with_real_model(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert all(payload['parts'][p] for p in ('upper_body', 'lower_body', 'full_body'))
+
+
+def test_grabcut_returns_empty_without_numpy():
+    """_parse_grabcut should fail gracefully when numpy is missing."""
+    from clothseg import ClothSegmenter
+    import types
+
+    dummy_img = [[0, 0], [0, 0]]
+    dummy_cv2 = types.SimpleNamespace(
+        imread=lambda p: dummy_img,
+        grabCut=lambda *a, **k: None,
+        GC_INIT_WITH_RECT=0,
+    )
+
+    with patch('clothseg.cv2', dummy_cv2, create=True), \
+         patch('clothseg.np', None, create=True):
+        seg = ClothSegmenter()
+        assert seg._parse_grabcut('dummy') == {}
