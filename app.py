@@ -207,6 +207,8 @@ def register_email():
         return jsonify({'error': 'Email and password required'}), 400
     hashed = generate_password_hash(password)
     with SessionLocal() as session:
+        if session.query(User).filter_by(identifier=email).first():
+            return jsonify({'error': 'User already exists'}), 409
         session.add(User(identifier=email, method='email', password=hashed))
         session.commit()
     return jsonify({'message': f'Registered {email} via email'})
@@ -218,6 +220,8 @@ def register_phone():
     if not phone:
         return jsonify({'error': 'Phone number required'}), 400
     with SessionLocal() as session:
+        if session.query(User).filter_by(identifier=phone).first():
+            return jsonify({'error': 'User already exists'}), 409
         session.add(User(identifier=phone, method='phone'))
         session.commit()
     return jsonify({'message': f'Registered {phone} via phone'})
@@ -229,6 +233,8 @@ def register_google():
     if not token:
         return jsonify({'error': 'Google token required'}), 400
     with SessionLocal() as session:
+        if session.query(User).filter_by(identifier=token).first():
+            return jsonify({'error': 'User already exists'}), 409
         session.add(User(identifier=token, method='google'))
         session.commit()
     return jsonify({'message': 'Registered via Google'})
@@ -240,6 +246,8 @@ def register_facebook():
     if not token:
         return jsonify({'error': 'Facebook token required'}), 400
     with SessionLocal() as session:
+        if session.query(User).filter_by(identifier=token).first():
+            return jsonify({'error': 'User already exists'}), 409
         session.add(User(identifier=token, method='facebook'))
         session.commit()
     return jsonify({'message': 'Registered via Facebook'})
