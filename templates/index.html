@@ -14,12 +14,15 @@
         <input type="file" name="image" accept="image/*">
         <button type="submit">Upload</button>
     </form>
+    <div id="upload-preview" class="preview"></div>
+    <div id="upload-loading" class="loading">Loading...</div>
 
     <h2>Describe your outfit</h2>
     <form id="suggest-form">
         <input type="text" name="description" placeholder="Enter description">
         <button type="submit">Suggest</button>
     </form>
+    <div id="suggest-loading" class="loading">Loading...</div>
 
     <h2>Compose with clothing items</h2>
     <form id="compose-form" enctype="multipart/form-data">
@@ -31,6 +34,8 @@
         </label>
         <button type="submit">Compose</button>
     </form>
+    <div id="compose-preview" class="preview"></div>
+    <div id="compose-loading" class="loading">Loading...</div>
 
     <div id="results"></div>
     <div id="composite-result"></div>
