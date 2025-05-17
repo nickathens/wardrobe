@@ -5,6 +5,11 @@ from typing import Dict, List
 import struct
 
 try:
+    import cv2
+except Exception:  # pragma: no cover - optional dependency
+    cv2 = None
+
+try:
     import torch
     from PIL import Image
     import numpy as np
@@ -108,6 +113,80 @@ class ClothSegmenter:
             pass
         return 0, 0
 
+    def _parse_grabcut(self, image_path: str) -> Dict[str, List]:
+        """Return simple masks using OpenCV's GrabCut if available."""
+        if cv2 is None:
+            return {}
+        img = cv2.imread(image_path)
+        if img is None:
+            return {}
+        mask = np.zeros(img.shape[:2], np.uint8)
+        rect = (1, 1, img.shape[1] - 2, img.shape[0] - 2)
+        bgdModel = np.zeros((1, 65), np.float64)
+        fgdModel = np.zeros((1, 65), np.float64)
+        try:  # pragma: no cover - requires cv2
+            cv2.grabCut(img, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
+        except Exception:  # pragma: no cover - grabcut failure
+            return {}
+        mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype("uint8")
+        if mask2.sum() == 0:
+            return {}
+        ys, xs = np.where(mask2 == 1)
+        left, right = int(xs.min()), int(xs.max())
+        top, bottom = int(ys.min()), int(ys.max())
+        mid = (top + bottom) // 2
+        return {
+            "upper_body": [[left, top, right, mid]],
+            "lower_body": [[left, mid, right, bottom]],
+            "full_body": [[left, top, right, bottom]],
+        }
+
+    def classify(self, image_path: str, parts: Dict[str, List]) -> Dict[str, str]:
+        """Return a simple category and colour estimate for the garment."""
+        if cv2 is None:
+            return {"category": "unknown", "color": "unknown"}
+        full = parts.get("full_body")
+        if not full:
+            return {"category": "unknown", "color": "unknown"}
+        x1, y1, x2, y2 = full[0]
+        img = cv2.imread(image_path)
+        if img is None:
+            return {"category": "unknown", "color": "unknown"}
+        region = img[y1:y2, x1:x2]
+        if region.size == 0:
+            return {"category": "unknown", "color": "unknown"}
+        h, w = region.shape[:2]
+        ratio = h / w if w else 0
+        if ratio > 1.3:
+            category = "dress"
+        elif ratio > 0.8:
+            category = "shirt"
+        else:
+            category = "pants"
+        avg_bgr = region.mean(axis=(0, 1))
+        hsv = cv2.cvtColor(avg_bgr.reshape(1, 1, 3).astype("uint8"), cv2.COLOR_BGR2HSV)[0, 0]
+        hval, sval, vval = hsv
+        if vval > 200 and sval < 30:
+            color = "white"
+        elif vval < 50:
+            color = "black"
+        elif sval < 40:
+            color = "gray"
+        else:
+            if hval < 15 or hval >= 165:
+                color = "red"
+            elif hval < 30:
+                color = "orange"
+            elif hval < 45:
+                color = "yellow"
+            elif hval < 75:
+                color = "green"
+            elif hval < 130:
+                color = "blue"
+            else:
+                color = "purple"
+        return {"category": category, "color": color}
+
     def parse(self, image_path: str) -> Dict[str, List]:
         """Return segmentation masks for the supplied image.
 
@@ -128,7 +207,10 @@ class ClothSegmenter:
                 except Exception:
                     self.model = None
 
-        if self.model is None:  # pragma: no cover - dummy path
+        if self.model is None:
+            parts_gc = self._parse_grabcut(image_path)
+            if parts_gc:
+                return parts_gc
             width, height = self._get_image_size(image_path)
             if width == 0 or height == 0:
                 return {part: [] for part in parts}
