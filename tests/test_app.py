@@ -75,6 +75,29 @@ def test_upload_route_invalid_file_type(client):
     assert response.get_json() == {'error': 'Invalid file type'}
 
 
+def test_upload_route_openai_error(client):
+    data = {
+        'image': (io.BytesIO(b'mock image data'), 'test.png')
+    }
+    with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
+         patch('app.openai.ChatCompletion.create', side_effect=app_module.openai.error.OpenAIError('fail')) as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        parse.return_value = {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        }
+        response = client.post(
+            '/upload',
+            data=data,
+            content_type='multipart/form-data'
+        )
+        chat_create.assert_called_once()
+        img_create.assert_not_called()
+    assert response.status_code == 502
+    assert response.get_json() == {'error': 'OpenAI request failed'}
+
+
 def test_parse_route(client):
     data = {
         'image': (io.BytesIO(b'mock image data'), 'test.png')
@@ -132,6 +155,17 @@ def test_suggest_route(client):
         'suggestions': ['Stub suggest desc'],
         'image_url': 'http://example.com/desc.png'
     }
+
+
+def test_suggest_route_openai_error(client):
+    data = {'description': 'casual outfit'}
+    with patch('app.openai.ChatCompletion.create', side_effect=app_module.openai.error.OpenAIError('fail')) as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        response = client.post('/suggest', data=data)
+        chat_create.assert_called_once()
+        img_create.assert_not_called()
+    assert response.status_code == 502
+    assert response.get_json() == {'error': 'OpenAI request failed'}
 
 
 def test_compose_route(client):
@@ -199,6 +233,26 @@ def test_compose_route_invalid_file_type(client):
     response = client.post('/compose', data=data, content_type='multipart/form-data')
     assert response.status_code == 400
     assert response.get_json() == {'error': 'Invalid file type'}
+
+
+def test_compose_route_openai_error(client):
+    data = {
+        'body': (io.BytesIO(b'body data'), 'body.png'),
+        'clothes1': (io.BytesIO(b'shirt'), 'shirt.png')
+    }
+    with patch.object(app_module.cloth_segmenter, 'parse') as parse, \
+         patch('app.openai.ChatCompletion.create', side_effect=app_module.openai.error.OpenAIError('fail')) as chat_create, \
+         patch('app.openai.Image.create') as img_create:
+        parse.return_value = {
+            'upper_body': [],
+            'lower_body': [],
+            'full_body': []
+        }
+        response = client.post('/compose', data=data, content_type='multipart/form-data')
+        chat_create.assert_called_once()
+        img_create.assert_not_called()
+    assert response.status_code == 502
+    assert response.get_json() == {'error': 'OpenAI request failed'}
 
 
 def test_register_email(client):

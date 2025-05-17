@@ -1,4 +1,5 @@
 import os
+import logging
 try:
     from flask import Flask, request, render_template, jsonify
 except Exception:  # pragma: no cover - fallback when Flask isn't installed
@@ -21,6 +22,7 @@ if openai.api_key is None and getattr(openai, "__name__", "") != "openai_stub":
     raise RuntimeError("OPENAI_API_KEY not set")
 
 app = Flask(__name__)
+logger = logging.getLogger(__name__)
 cloth_segmenter = ClothSegmenter()
 
 # Database setup
@@ -83,13 +85,18 @@ def upload():
 
     part_names = ", ".join(parts.keys()) if parts else "unknown parts"
     prompt = f"Suggest an outfit based on the clothing parts: {part_names}"
-    chat = openai.ChatCompletion.create(
-        messages=[{"role": "user", "content": prompt}],
-        model="gpt-3.5-turbo",
-    )
-    suggestion_text = chat["choices"][0]["message"]["content"]
-    image = openai.Image.create(prompt=prompt)
-    image_url = image["data"][0]["url"]
+    try:
+        chat = openai.ChatCompletion.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="gpt-3.5-turbo",
+        )
+        suggestion_text = chat["choices"][0]["message"]["content"]
+        image = openai.Image.create(prompt=prompt)
+        image_url = image["data"][0]["url"]
+    except openai.error.OpenAIError:
+        logger.exception("OpenAI request failed")
+        return jsonify({"error": "OpenAI request failed"}), 502
+
     return jsonify({'suggestions': [suggestion_text], 'image_url': image_url})
 
 
@@ -119,13 +126,18 @@ def parse_image():
 def suggest():
     description = request.form.get('description', '')
     prompt = f"Suggest an outfit for: {description}"
-    chat = openai.ChatCompletion.create(
-        messages=[{"role": "user", "content": prompt}],
-        model="gpt-3.5-turbo",
-    )
-    suggestion_text = chat["choices"][0]["message"]["content"]
-    image = openai.Image.create(prompt=prompt)
-    image_url = image["data"][0]["url"]
+    try:
+        chat = openai.ChatCompletion.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="gpt-3.5-turbo",
+        )
+        suggestion_text = chat["choices"][0]["message"]["content"]
+        image = openai.Image.create(prompt=prompt)
+        image_url = image["data"][0]["url"]
+    except openai.error.OpenAIError:
+        logger.exception("OpenAI request failed")
+        return jsonify({"error": "OpenAI request failed"}), 502
+
     return jsonify({'suggestions': [suggestion_text], 'image_url': image_url})
 
 
@@ -168,13 +180,18 @@ def compose():
     prompt = (
         f"Combine body parts {part_names} with clothing items: {clothing_names}"
     )
-    chat = openai.ChatCompletion.create(
-        messages=[{"role": "user", "content": prompt}],
-        model="gpt-3.5-turbo",
-    )
-    suggestion_text = chat["choices"][0]["message"]["content"]
-    image = openai.Image.create(prompt=prompt)
-    image_url = image["data"][0]["url"]
+    try:
+        chat = openai.ChatCompletion.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="gpt-3.5-turbo",
+        )
+        suggestion_text = chat["choices"][0]["message"]["content"]
+        image = openai.Image.create(prompt=prompt)
+        image_url = image["data"][0]["url"]
+    except openai.error.OpenAIError:
+        logger.exception("OpenAI request failed")
+        return jsonify({"error": "OpenAI request failed"}), 502
+
     return jsonify({'suggestions': [suggestion_text], 'image_url': image_url})
 
 

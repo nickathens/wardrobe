@@ -11,4 +11,9 @@ class Image:
         url = f"https://example.com/{prompt.replace(' ', '_')}.png"
         return {"data": [{"url": url}]}
 
+class error:
+    class OpenAIError(Exception):
+        """Exception raised for OpenAI API errors in the stub."""
+        pass
+
 api_key = None
