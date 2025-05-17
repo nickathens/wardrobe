@@ -203,7 +203,7 @@ def test_compose_route(client):
     payload = response.get_json()
     assert payload == {
         'suggestions': ['combo'],
-        'image_url': 'http://example.com/combo.png'
+        'composite_url': 'http://example.com/combo.png'
     }
 
 
