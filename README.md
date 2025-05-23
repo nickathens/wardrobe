@@ -84,11 +84,15 @@ background. The `/analyze` endpoint exposes this functionality and additionally
 provides a lightweight classification that labels the item as a shirt, pants or
 dress and estimates a basic colour.
 
-## Virtual Try-On
+## Advanced Features
 
-For realistic outfit visualisation you may integrate an external try-on engine. Open-source implementations such as [VITON-HD](https://github.com/OpenTalker/VITON-HD) can warp a garment image onto a full-body photo of the user. This repository does not bundle such a model, but the `/compose` API route can be adapted to call a dedicated try-on pipeline, typically requiring a GPU for best results.
+### Virtual Try-On
 
-## Outfit Scoring with GPT-4
+The application currently uses general AI image generation (via OpenAI's DALL-E) for visual compositions in endpoints like `/compose`. This means it generates new images based on textual descriptions derived from uploaded items rather than performing a true virtual try-on.
+
+A true virtual try-on system would involve overlaying specific garment images onto a user's photo, preserving their pose and body shape while realistically draping the clothes. This is a complex R&D task requiring specialized machine learning models. For more details on how such a system could be conceptualized and integrated, please see the [Virtual Try-On Implementation Guide](./VIRTUAL_TRY_ON.md). The existing `/compose` endpoint is a starting point for such an integration.
+
+### Outfit Scoring with GPT-4
 
 The application uses OpenAI's chat completions API to generate outfit suggestions. By default it calls the `gpt-3.5-turbo` model, but you can switch to GPT-4 by setting the `model` parameter in `app.py` to `gpt-4`. GPT-4 can reason about style compatibility using textual metadata for each garment, serving as a lighter alternative to specialised transformer models.
 
